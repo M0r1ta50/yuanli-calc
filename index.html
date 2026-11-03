@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>元利四季莊園 客變下料計算</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f4ef;--card:#fff;--ink:#1f2a2e;--mute:#6b7478;--line:#e2ded4;--acc:#1f6f6b;--accbg:#e3f0ee;--inp:#fbfaf7;--bad:#b4541a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14191a;--card:#1d2425;--ink:#e8ecea;--mute:#98a3a5;--line:#2f3a3c;--acc:#5fc3bb;--accbg:#1d3533;--inp:#162021;--bad:#e89a5f}}
+:root[data-theme="dark"]{--bg:#14191a;--card:#1d2425;--ink:#e8ecea;--mute:#98a3a5;--line:#2f3a3c;--acc:#5fc3bb;--accbg:#1d3533;--inp:#162021;--bad:#e89a5f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+main{max-width:1060px;margin:0 auto;padding:20px 14px 48px}
+h1{font-size:21px;margin:0 0 4px}
+.sub{color:var(--mute);font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tag{background:var(--accbg);color:var(--acc);border-radius:99px;padding:1px 10px;font-size:12px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px;margin-top:14px}
+h2{font-size:16px;margin:0 0 4px}
+.hint{color:var(--mute);font-size:12.5px;margin:0 0 10px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:680px}
+th{font-weight:600;font-size:12px;color:var(--mute);text-align:left;padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:4px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.off{opacity:.42}
+input,select{font:inherit;font-size:13.5px;color:var(--ink);background:var(--inp);border:1px solid var(--line);border-radius:6px;padding:5px 6px;width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:-1px}
+input:disabled,select:disabled{opacity:.75;cursor:default}
+input.n{width:84px;text-align:right}
+td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.room{white-space:nowrap;font-weight:600}
+.room.s{padding-left:18px;font-weight:400;color:var(--mute)}
+.net{font-weight:700;color:var(--acc)}
+.top{display:flex;gap:14px;align-items:end;flex-wrap:wrap}
+.top label{font-size:12px;color:var(--mute);display:block}
+.top input{width:90px}
+.top select{width:150px;font-weight:600}
+button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.pri{background:var(--acc);border-color:var(--acc);color:var(--card);font-weight:600}
+button.x{padding:3px 9px;color:var(--mute)}
+.empty{color:var(--mute);padding:12px 4px;font-size:13.5px}
+.big{font-weight:700;font-variant-numeric:tabular-nums}
+.mut{color:var(--mute);font-size:12.5px}
+#sync{font-size:12.5px;color:var(--mute)}
+#sync.bad{color:var(--bad);font-weight:600}
+.grow{flex:1}
+#who{align-self:center}
+</style>
+</head>
+<body>
+<main>
+<h1>客變後下料計算</h1>
+<div class="sub"><span class="tag">元利四季莊園</span><span class="tag" id="utag"></span><span>依建材選樣表與客變圖設定預設值，請輸入尺寸</span></div>
+
+<section class="card">
+  <div class="top">
+    <div><label>戶別（只影響你自己的畫面）</label><select id="unit"><option value="F01">F01 棟 2 樓</option><option value="F02">F02 棟 2 樓</option></select></div>
+    <div><label>損耗率 (%)（兩戶共用）</label><input id="loss" type="number" step="0.5" min="0"></div>
+    <button id="reset" type="button" hidden>清除此戶輸入</button>
+    <span class="grow"></span>
+    <span id="who" class="mut"></span>
+    <button id="login" type="button" class="pri" hidden>輸入者登入（Google）</button>
+    <button id="logout" type="button" hidden>登出</button>
+  </div>
+  <p id="sync" style="margin:10px 0 2px">載入中…</p>
+  <p class="hint" id="note" style="margin:4px 0 4px"></p>
+</section>
+
+<section class="card">
+  <h2>下料彙總</h2>
+  <p class="hint">施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。</p>
+  <div class="wrap"><table id="sum"></table></div>
+</section>
+
+<section class="card">
+  <h2>門（只需在這裡輸入一次）</h2>
+  <p class="hint">門寬×數量會自動從該「範圍」的踢腳板長度扣除；若門同時開在另一個房間（例如臥室門開向客廳），在「踢腳另扣於」選該房間，那邊的踢腳板也會扣掉；門寬×門高（不超過牆高）×數量自動從壁磚面積扣除。狀態「追減」只影響木門數量，不影響扣減；「計入木門」選「否」的門（如 D5a 落地門）只扣踢腳，不列入木門彙總。</p>
+  <div class="wrap"><table id="door"></table></div>
+  <p><button id="addDoor" type="button" hidden>＋ 新增一扇門</button></p>
+  <div class="wrap"><table id="dsum"></table></div>
+</section>
+
+<section class="card">
+  <h2>地坪</h2>
+  <p class="hint">地磚只填面積與扣減（可輸入 長*寬 運算式）；選石英磚才會出現踢腳板（只填長度，門自動扣）；選木地板不含踢腳板。客廳已含餐廳。</p>
+  <div class="wrap"><table id="floor"></table></div>
+</section>
+
+<section class="card">
+  <h2>浴室地磚／壁磚、廚房壁磚</h2>
+  <p class="hint">地磚填面積；壁磚填壁長與高（預設 2.7 m），門自動扣；窗填在「其他扣減」，可直接輸入 寬*高（m），例如 0.85*1.4，多扇用 + 相加。</p>
+  <div class="wrap"><table id="bath"></table></div>
+</section>
+<p class="mut" style="margin-top:16px">版本 <span id="ver"></span></p>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const APP_VER='F1-1103-01';
+/* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
+const FIREBASE_CONFIG={
+  apiKey:"",
+  authDomain:"",
+  projectId:"",
+  storageBucket:"",
+  messagingSenderId:"",
+  appId:""
+};
+const $=id=>document.getElementById(id);
+const PING=0.3025,LOCAL='yl-f1-v4',KINDS=['floor','bath','door'];
+const CAT={
+ mats:{'拋光石英磚':{size:'90*90',base:1,models:[['TMB9090G10P','亮白']]},
+  '自然面石英磚':{size:'90*90',base:1,models:[['GD90140','銀影灰'],['GD90139','米白・標配']]},
+  '海島型複合木地板':{size:'',base:0,models:[['SC-526F','麥穗橡'],['SC-526H','原木橡'],['SC-526W','珍珠白']]}},
+ bf:{size:'30*60',models:[['CM3060G72N','米蘭洞石(灰)'],['CM3060B05N','佛羅里達(深灰)'],['CM3060GH1N','義大利洞石(白)・標配']]},
+ bw:{size:'45*90',models:[['CM4590G72N','米蘭洞石(灰)'],['CM4590B05N','佛羅里達(深灰)'],['CM4590GH1N','義大利洞石(白)・標配'],['GD90139-C','米白・廚房標配']]}};
+const DT={D6:[90,230],D7:[90,230],D8:[80,230],D8a:[80,225],D5a:[130,240],DW9:[282.5,215],DW10:[166.5,215],DW11:[460,215],自訂:[90,230]};
+const ROOMS=['客廳','主臥','臥一','臥二','廚房','主浴','客浴','浴一'];
+const fl=(id,r,m,ph,st,mat)=>({id,r,mat:mat||'拋光石英磚',m,st:st||'施作',A:'',D:'',L:'',ph:ph||''});
+const bf=(id,r,m,st)=>({id,r,k:'f',m,st:st||'施作',A:'',L:'',H:'',E:''});
+const bw=(id,r,m,st,e)=>({id,r,k:'w',m,st:st||'施作',A:'',L:'',H:'2.7',E:e||''});
+const dr=(id,r,t,st,o,r2,c)=>({id,r,t,w:DT[t][0],h:DT[t][1],o:o||'',r2:r2||'',c:c||'是',q:1,st:st||'施作'});
+const WOOD='海島型複合木地板',NAT='自然面石英磚';
+const UNITS={
+ F01:{label:'F01 棟 2 樓',note:'浴一依客變圖為全退、地坪同臥一，臥一面積請含延伸進浴一的部分；廚房裝修全退（地坪、壁磚追減），廚房門 D7 仍施作。'},
+ F02:{label:'F02 棟 2 樓',note:'圖面註記：臥1輕隔間牆退、臥1門框扇全退（臥一室內門追減，故未列門）；主臥輕隔間牆位移，需留 30 cm 給裝修收尾。浴室圖面未見窗，其他扣減留白；無浴一。'}};
+const DEF={
+ F01:()=>({
+  floor:[fl('liv','客廳','TMB9090G10P'),fl('mb','主臥','TMB9090G10P','圖面約 3.3×4.8'),fl('b1','臥一','TMB9090G10P'),fl('b2','臥二','TMB9090G10P','圖面約 2.7×3.75'),fl('kit','廚房','GD90139','','追減',NAT)],
+  bath:[bf('mbf','主浴','CM3060B05N'),bw('mbw','主浴','CM4590B05N','施作','0.65*1.4'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.85*1.4'),bf('b1f','浴一','CM3060GH1N','追減'),bw('b1w','浴一','CM4590GH1N','追減'),bw('kw','廚房','GD90139-C','追減')],
+  door:[dr('d1','主臥','D6','施作','右開','客廳'),dr('d2','臥一','D6','施作','右開','客廳'),dr('d3','臥二','D6','施作','左開','客廳'),dr('d4','主浴','D8a','施作','右開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+ F02:()=>({
+  floor:[fl('liv','客廳','SC-526W','','施作',WOOD),fl('mb','主臥','SC-526W','','施作',WOOD),fl('b1','臥一','SC-526W','','施作',WOOD),fl('b2','臥二','SC-526W','圖面約 2.4×3.3','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
+  bath:[bf('mbf','主浴','CM3060B05N'),bw('mbw','主浴','CM4590B05N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N'),bw('kw','廚房','GD90139-C')],
+  door:[dr('d1','主臥','D6','施作','左開'),dr('d2','臥二','D6','施作','左開','客廳'),dr('d3','主浴','D8','施作','左開'),dr('d4','客浴','D8','施作','右開','客廳'),dr('d5','廚房','D7','施作','右開','客廳'),dr('d6','客廳','D5a','施作','','','否')]})};
+
+
+/* ---------- 雲端資料庫（Firebase）：任何人可讀；名單內的 Google 帳號才能寫 ---------- */
+let DB=null,AUTH=null,ME=null,canWrite=false,UNIT='F01',LOSS=5,S={floor:[],bath:[],door:[]};
+const OV=new Map();   // 文件id -> 使用者改過的欄位（差異）
+const VER=new Map();  // 路徑 -> 雲端版本號 _v
+const W=new Map();    // 寫入佇列
+try{const u=localStorage.getItem('yl-unit');if(UNITS[u])UNIT=u;}catch(e){}
+
+const setStatus=(t,bad)=>{const e=$('sync');e.textContent=t;e.className=bad?'bad':'';};
+const META=['_v','_by','_t'];
+const strip=d=>{const o=Object.assign({},d);META.forEach(k=>delete o[k]);return o;};
+function build(u){
+  const df=DEF[u](),out={};
+  KINDS.forEach(kd=>{
+    const list=[],pre=`${u}~${kd}~`,ids=new Set();
+    df[kd].forEach(r=>{const id=pre+r.id;ids.add(id);const o=OV.get(id);if(o&&o.deleted)return;list.push(Object.assign({},r,o||{},{id:r.id,_id:id}));});
+    [...OV.entries()].filter(([id,o])=>id.startsWith(pre)&&!ids.has(id)&&!o.deleted&&o.t).sort((a,b)=>a[0]<b[0]?-1:1)
+      .forEach(([id,o])=>list.push(Object.assign({},o,{_id:id})));
+    out[kd]=list;
+  });
+  return out;
+}
+const rebuild=()=>{S=build(UNIT);};
+
+/* 寫入：500 ms 合併；帶版本號 _v，資料庫只收比較新的版本。被拒時抓最新一份、把自己改的欄位疊上去再寫一次 */
+function queueWrite(path,get,fields,replace){
+  if(!DB||!canWrite)return;
+  let w=W.get(path);if(!w){w={fields:{}};W.set(path,w);}
+  w.get=get;w.pend=true;
+  if(replace){w.replace=true;w.fields={};}else Object.assign(w.fields,fields||{});
+  clearTimeout(w.t);w.t=setTimeout(()=>flush(path),500);
+}
+const stamp=(d,v)=>Object.assign({},d,{_v:v,_by:ME.email,_t:firebase.firestore.FieldValue.serverTimestamp()});
+async function flush(path){
+  const w=W.get(path);if(!w)return;
+  if(w.busy){w.dirty=true;return;}
+  w.busy=true;setStatus('儲存中…');
+  const fields=w.fields,replace=w.replace;w.fields={};w.replace=false;
+  const data=stamp(w.get(),(VER.get(path)||0)+1);
+  try{await DB.doc(path).set(data);VER.set(path,data._v);setStatus('已同步 ✓');}
+  catch(e){
+    if(e&&e.code==='permission-denied'){
+      try{                                         // 可能別人剛改過同一列：合併後重寫
+        const s=await DB.doc(path).get(),cur=s.exists?s.data():{};
+        const base=replace?w.get():Object.assign({},strip(cur),fields);
+        const d2=stamp(base,(cur._v||0)+1);
+        await DB.doc(path).set(d2);VER.set(path,d2._v);
+        if(path.startsWith('rows/'))OV.set(path.slice(5),strip(d2));else LOSS=d2.v;
+        rebuild();renderKeep();setStatus('已同步 ✓（已與其他人的修改合併）');
+      }catch(e2){
+        if(e2&&e2.code==='permission-denied'){canWrite=false;setStatus('寫入被拒：這個帳號不在輸入名單，請洽管理者。',true);renderAll();}
+        else setStatus('儲存失敗（'+((e2&&e2.code)||'未知')+'），請稍後再試',true);
+      }
+    }else setStatus('儲存失敗（'+((e&&e.code)||'未知')+'），請檢查網路後再試',true);
+  }
+  w.busy=false;
+  if(w.dirty){w.dirty=false;await flush(path);}else w.pend=false;
+}
+function patch(row,kd,obj){
+  Object.assign(row,obj);
+  const id=row._id,cur=OV.get(id)||{unit:UNIT,kind:kd,id:row.id};
+  OV.set(id,Object.assign({},cur,obj));
+  queueWrite('rows/'+id,()=>OV.get(id),obj);
+}
+
+/* ---------- 畫面 ---------- */
+const esc=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const sel=(t,i,k,opts,v)=>`<select data-t="${t}" data-i="${i}" data-k="${k}">${opts.map(o=>`<option value="${esc(o)}"${o===v?' selected':''}>${o||'—'}</option>`).join('')}</select>`;
+const msel=(t,i,k,list,v)=>`<select data-t="${t}" data-i="${i}" data-k="${k}">${list.map(([c,n])=>`<option value="${c}"${c===v?' selected':''}>${c} ${n}</option>`).join('')}</select>`;
+const num=(t,i,k,v,ph)=>`<input class="n" type="number" step="0.01" min="0" inputmode="decimal" placeholder="${esc(ph||'')}" data-t="${t}" data-i="${i}" data-k="${k}" value="${esc(v)}">`;
+const exp=(t,i,k,v,ph)=>`<input class="n" style="width:128px" type="text" inputmode="decimal" placeholder="${esc(ph||'')}" data-t="${t}" data-i="${i}" data-k="${k}" value="${esc(v)}">`;
+const mname=(list,c)=>{const x=list.find(a=>a[0]===c);return x?x[1]:'';};
+const f2=n=>(Math.round(n*100)/100).toFixed(2);
+const ev=s=>String(s==null?'':s).replace(/[x×X]/g,'*').split('+').reduce((a,t)=>a+t.split('*').reduce((p,v)=>p*(+v||0),1)*(t.trim()?1:0),0);
+
+function renderFloor(){
+  let h='<tr><th>範圍</th><th>狀態</th><th>品項</th><th>型號</th><th>面積 m²／長度 m</th><th>扣減</th><th>淨量</th></tr>';
+  S.floor.forEach((r,i)=>{
+    const mat=CAT.mats[r.mat],off=r.st==='追減'?' class="off"':'';
+    h+=`<tr${off}><td class="room">${r.r}</td><td>${sel('floor',i,'st',['施作','追減'],r.st)}</td><td>${sel('floor',i,'mat',Object.keys(CAT.mats),r.mat)}</td><td>${msel('floor',i,'m',mat.models,r.m)}</td><td>${num('floor',i,'A',r.A,r.ph||'面積')}</td><td>${exp('floor',i,'D',r.D,'m² 或 長*寬')}</td><td class="r net" id="floor-${i}">—</td></tr>`;
+    if(mat.base)h+=`<tr${off}><td class="room s">↳ 踢腳板</td><td></td><td class="mut">同地磚</td><td class="mut">${r.m}</td><td>${num('floor',i,'L',r.L,'長度')}</td><td class="r mut" id="floor-${i}-d">—</td><td class="r net" id="floor-${i}-b">—</td></tr>`;
+  });
+  $('floor').innerHTML=h;
+}
+function renderBath(){
+  let h='<tr><th>範圍</th><th>項目</th><th>狀態</th><th>型號</th><th>面積／壁長</th><th>高 m</th><th>其他扣減 m²</th><th>門扣減</th><th>淨面積</th></tr>';
+  S.bath.forEach((r,i)=>{
+    const w=r.k==='w',c=w?CAT.bw:CAT.bf,off=r.st==='追減'?' class="off"':'';
+    h+=`<tr${off}><td class="room">${r.r}</td><td>${w?'壁磚 45*90':'地磚 30*60'}</td><td>${sel('bath',i,'st',['施作','追減'],r.st)}</td><td>${msel('bath',i,'m',c.models,r.m)}</td><td>${w?num('bath',i,'L',r.L,'壁長 m'):num('bath',i,'A',r.A,'面積 m²')}</td><td>${w?num('bath',i,'H',r.H):''}</td><td>${exp('bath',i,'E',r.E,'窗：寬*高 (m)')}<div class="mut" id="bath-${i}-e"></div></td><td class="r mut" id="bath-${i}-d">—</td><td class="r net" id="bath-${i}">—</td></tr>`;
+  });
+  $('bath').innerHTML=h;
+}
+function renderDoor(){
+  $('door').innerHTML='<tr><th>範圍</th><th>踢腳另扣於</th><th>門型</th><th>寬 cm</th><th>高 cm</th><th>開向</th><th>數量</th><th>狀態</th><th>計入木門</th><th></th></tr>'+S.door.map((r,i)=>
+   `<tr><td>${sel('door',i,'r',ROOMS,r.r)}</td><td>${sel('door',i,'r2',['',...ROOMS],r.r2)}</td><td>${sel('door',i,'t',Object.keys(DT),r.t)}</td><td>${num('door',i,'w',r.w)}</td><td>${num('door',i,'h',r.h)}</td><td>${sel('door',i,'o',['','左開','右開'],r.o)}</td><td>${num('door',i,'q',r.q)}</td><td>${sel('door',i,'st',['施作','追減'],r.st)}</td><td>${sel('door',i,'c',['是','否'],r.c||'是')}</td><td>${canWrite?`<button class="x" data-del="${i}" type="button">✕</button>`:''}</td></tr>`).join('');
+}
+function lockUI(){
+  const ro=!canWrite;
+  document.querySelectorAll('#door input,#door select,#floor input,#floor select,#bath input,#bath select,#loss').forEach(e=>e.disabled=ro);
+  $('addDoor').hidden=ro;$('reset').hidden=ro;
+}
+function renderAll(){
+  $('loss').value=LOSS;
+  $('unit').value=UNIT;
+  $('utag').textContent=UNITS[UNIT].label;
+  $('note').textContent=UNITS[UNIT].note;
+  document.title='客變下料計算 '+UNITS[UNIT].label;
+  renderDoor();renderFloor();renderBath();calc();lockUI();
+}
+function renderKeep(){
+  const a=document.activeElement;let s=null;
+  if(a&&a.dataset&&a.dataset.t)s={t:a.dataset.t,i:a.dataset.i,k:a.dataset.k,a:a.selectionStart,b:a.selectionEnd};
+  renderAll();
+  if(s){const n=document.querySelector(`[data-t="${s.t}"][data-i="${s.i}"][data-k="${s.k}"]`);if(n){n.focus();try{n.setSelectionRange(s.a,s.b);}catch(e){}}}
+}
+
+/* ---------- 計算 ---------- */
+const doorsOf=r=>S.door.filter(d=>d.r===r);
+const dW=r=>S.door.filter(d=>d.r===r||d.r2===r).reduce((a,d)=>a+(+d.w||0)/100*(+d.q||0),0);
+const dA=(r,H)=>doorsOf(r).reduce((a,d)=>a+(+d.w||0)/100*Math.min((+d.h||0)/100,H)*(+d.q||0),0);
+const set=(id,t)=>{const e=$(id);if(e)e.textContent=t;};
+function calc(){
+  const loss=1+(+LOSS||0)/100,G=new Map();
+  const add=(cat,item,m,size,unit,n)=>{if(n<=0)return;const k=[cat,item,m,size,unit].join('|');const g=G.get(k)||{cat,item,m,size,unit,n:0};g.n+=n;G.set(k,g);};
+  S.floor.forEach((r,i)=>{
+    const mat=CAT.mats[r.mat],n=Math.max(0,(+r.A||0)-ev(r.D));
+    set(`floor-${i}`,n?f2(n)+' m²':'—');
+    if(r.st==='施作')add('地坪',r.mat,r.m,mat.size,'m²',n);
+    if(mat.base){
+      const dw=dW(r.r),b=Math.max(0,(+r.L||0)-dw);
+      set(`floor-${i}-d`,`門 −${f2(dw)} m`);set(`floor-${i}-b`,b?f2(b)+' m':'—');
+      if(r.st==='施作')add('踢腳板',r.mat+' 踢腳',r.m,mat.size,'m',b);
+    }
+  });
+  S.bath.forEach((r,i)=>{
+    const w=r.k==='w';let n,d=0;
+    if(w){const H=+r.H||0;d=dA(r.r,H);n=Math.max(0,(+r.L||0)*H-d-ev(r.E));set(`bath-${i}-d`,`−${f2(d)} m²`);}
+    else n=Math.max(0,(+r.A||0)-ev(r.E));
+    set(`bath-${i}-e`,ev(r.E)?`= ${f2(ev(r.E))} m²`:'');
+    set(`bath-${i}`,n?f2(n)+' m²':'—');
+    if(r.st==='施作')add(w?'壁磚':'浴室地磚','自然面石英磚',r.m,(w?CAT.bw:CAT.bf).size,'m²',n);
+  });
+  const all=[...Object.values(CAT.mats).flatMap(x=>x.models),...CAT.bf.models,...CAT.bw.models];
+  const rows=[...G.values()].map(g=>{
+    const len=g.unit==='m',gross=g.n*loss,p=(g.size||'').split('*').map(Number);
+    const pcs=!len&&p.length===2&&p[0]>0&&p[1]>0?Math.ceil(gross/(p[0]*p[1]/10000)-1e-9):null;
+    return `<tr><td>${g.cat}</td><td>${g.item}</td><td>${g.m} <span class="mut">${mname(all,g.m)}</span></td><td>${g.size||'—'}</td><td class="r">${f2(g.n)} ${g.unit}</td><td class="r big">${f2(gross)} ${g.unit}</td><td class="r">${len?'—':f2(g.n*PING)}</td><td class="r big">${pcs==null?'—':pcs+' 片'}</td></tr>`;
+  });
+  $('sum').innerHTML='<tr><th>類別</th><th>品項</th><th>型號</th><th>尺寸 cm</th><th>淨量</th><th>含損耗</th><th>淨面積 坪</th><th>片數</th></tr>'
+   +(rows.join('')||'<tr><td colspan="8" class="empty">尚未輸入尺寸；填入面積／長度後會顯示彙總。</td></tr>');
+  const D=new Map();
+  S.door.forEach(r=>{
+    const q=+r.q||0;if(r.st!=='施作'||r.c==='否'||q<=0)return;
+    const k=[r.t,r.w,r.h,r.o].join('|'),g=D.get(k)||{t:r.t,w:r.w,h:r.h,o:r.o,q:0,rooms:[]};
+    g.q+=q;g.rooms.push(r.r);D.set(k,g);
+  });
+  $('dsum').innerHTML='<tr><th>門型</th><th>尺寸 cm</th><th>開向</th><th>合計</th><th>範圍</th></tr>'
+   +([...D.values()].map(g=>`<tr><td>${g.t}</td><td>${g.w}×${g.h}</td><td>${g.o||'—'}</td><td class="r big">${g.q} 樘</td><td>${g.rooms.join('、')}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">尚無施作中的木門。</td></tr>');
+}
+
+
+/* ---------- 事件 ---------- */
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.id==='unit'){UNIT=el.value;try{localStorage.setItem('yl-unit',UNIT);}catch(x){}rebuild();renderAll();return;}
+  if(!canWrite)return;
+  if(el.id==='loss'){LOSS=el.value;calc();queueWrite('settings/loss',()=>({v:LOSS}),{v:LOSS});return;}
+  const t=el.dataset.t;if(!t)return;
+  const row=S[t][el.dataset.i],k=el.dataset.k;if(!row)return;
+  const o={[k]:el.value};
+  if(t==='floor'&&k==='mat')o.m=CAT.mats[el.value].models[0][0];
+  if(t==='door'&&k==='t'){o.w=DT[el.value][0];o.h=DT[el.value][1];}
+  patch(row,t,o);
+  if(el.tagName==='SELECT')renderAll();else calc();
+});
+document.addEventListener('click',e=>{
+  const d=e.target.dataset.del;
+  if(d!==undefined&&canWrite){                   // 刪門＝留標記，不真刪
+    const row=S.door[+d];if(!row)return;
+    OV.set(row._id,{unit:UNIT,kind:'door',id:row.id,deleted:true});
+    queueWrite('rows/'+row._id,()=>OV.get(row._id),null,true);rebuild();renderAll();
+  }
+});
+$('addDoor').onclick=()=>{
+  if(!canWrite)return;
+  const id='n'+Date.now().toString(36),_id=`${UNIT}~door~${id}`;
+  OV.set(_id,Object.assign(dr(id,'客廳','D6'),{unit:UNIT,kind:'door'}));
+  queueWrite('rows/'+_id,()=>OV.get(_id),null,true);rebuild();renderAll();
+};
+let rst=null;
+$('reset').onclick=e=>{
+  const b=e.target;
+  if(!rst){b.textContent='再按一次確認（清掉此戶所有人的輸入）';rst=setTimeout(()=>{rst=null;b.textContent='清除此戶輸入';},4000);return;}
+  clearTimeout(rst);rst=null;b.textContent='清除此戶輸入';
+  [...OV.entries()].filter(([id])=>id.startsWith(UNIT+'~')).forEach(([id,o])=>{
+    const blank={unit:o.unit||UNIT,kind:o.kind,id:o.id};
+    if(/~door~n/.test(id))blank.deleted=true;    // 新增的門→標記刪除；預設列→回到預設值
+    OV.set(id,blank);queueWrite('rows/'+id,()=>OV.get(id),null,true);
+  });
+  rebuild();renderAll();
+};
+$('login').onclick=async()=>{
+  const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});
+  try{await AUTH.signInWithPopup(p);}
+  catch(e){
+    const c=e&&e.code;
+    if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-this-environment'||c==='auth/cancelled-popup-request')AUTH.signInWithRedirect(p);
+    else if(c!=='auth/popup-closed-by-user')setStatus('登入失敗（'+(c||'未知')+'）。若在 LINE 裡開啟，請改用 Chrome 或 Safari 開這個網址。',true);
+  }
+};
+$('logout').onclick=()=>AUTH.signOut();
+
+/* ---------- 啟動 ---------- */
+$('ver').textContent=APP_VER;
+rebuild();renderAll();
+(()=>{
+  if(!window.firebase||!FIREBASE_CONFIG.apiKey){setStatus(window.firebase?'尚未設定雲端資料庫，目前只顯示預設值。':'連不上雲端服務（程式庫載入失敗），請檢查網路後重新整理。',true);return;}
+  firebase.initializeApp(FIREBASE_CONFIG);
+  DB=firebase.firestore();AUTH=firebase.auth();
+  $('login').hidden=false;
+  let loaded=false;
+  const timer=setTimeout(()=>{if(!loaded)setStatus('暫時連不上雲端資料，請檢查網路後重新整理。',true);},10000);
+  const idle=()=>setStatus(canWrite?'已同步 ✓（多人即時更新）':'即時檢視中（只能瀏覽）・輸入者請按右上「輸入者登入」');
+  DB.collection('rows').onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      const id=ch.doc.id,d=ch.doc.data(),w=W.get('rows/'+id);
+      if(ch.type!=='removed')VER.set('rows/'+id,Math.max(VER.get('rows/'+id)||0,d._v||0));
+      if(w&&w.pend)return;                       // 自己正在輸入的列不被覆蓋
+      if(ch.type==='removed')OV.delete(id);else OV.set(id,strip(d));
+    });
+    const before=JSON.stringify(S);rebuild();
+    if(JSON.stringify(S)!==before)renderKeep();
+    if(!loaded&&!snap.metadata.fromCache){loaded=true;clearTimeout(timer);idle();}
+  },e=>setStatus('雲端資料連線中斷（'+((e&&e.code)||'未知')+'），請重新整理頁面。',true));
+  DB.doc('settings/loss').onSnapshot(snap=>{
+    const w=W.get('settings/loss');if(!snap.exists)return;
+    const d=snap.data();VER.set('settings/loss',Math.max(VER.get('settings/loss')||0,d._v||0));
+    if(!(w&&w.pend)&&d.v!==LOSS){LOSS=d.v;$('loss').value=LOSS;calc();}
+  },()=>{});
+  AUTH.onAuthStateChanged(async u=>{
+    ME=u;canWrite=false;
+    $('login').hidden=!!u;$('logout').hidden=!u;$('who').textContent=u?u.email:'';
+    if(u){                                       // 試寫一筆，確認在不在輸入名單（名單只存在資料庫規則）
+      try{await DB.doc('probes/'+u.uid).set({e:u.email,t:firebase.firestore.FieldValue.serverTimestamp()});canWrite=true;}
+      catch(e){setStatus(e&&e.code==='permission-denied'?`${u.email} 不在輸入名單，只能瀏覽。請洽管理者加入，或改用其他帳號登入。`:'確認權限失敗（'+((e&&e.code)||'未知')+'），請重新整理。',true);renderAll();return;}
+    }
+    renderAll();if(loaded)idle();
+  });
+})();
+</script>
+</body>
+</html>
