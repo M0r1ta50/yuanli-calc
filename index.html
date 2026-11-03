@@ -57,7 +57,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 
 <section class="card">
   <div class="top">
-    <div><label>戶別（只影響你自己的畫面）</label><select id="unit"><option value="F01">F01 棟 2 樓</option><option value="F02">F02 棟 2 樓</option></select></div>
+    <div><label>戶別（只影響你自己的畫面）</label><select id="unit"><option value="F01">F01 棟 2 樓</option><option value="F02">F02 棟 2 樓</option><option value="ALL">統計</option></select></div>
     <div><label>損耗率 (%)（兩戶共用）</label><input id="loss" type="number" step="0.5" min="0"></div>
     <button id="reset" type="button" hidden>清除此戶輸入</button>
     <span class="grow"></span>
@@ -70,12 +70,18 @@ button.x{padding:3px 9px;color:var(--mute)}
 </section>
 
 <section class="card">
-  <h2>下料彙總</h2>
-  <p class="hint">施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。</p>
+  <h2 id="sumTitle">下料彙總</h2>
+  <p class="hint" id="sumHint">施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。</p>
   <div class="wrap"><table id="sum"></table></div>
 </section>
 
-<section class="card">
+<section class="card" id="secDoorAll" hidden>
+  <h2>木門彙總</h2>
+  <p class="hint">施作中、計入木門的門，依 門型＋尺寸＋開向 合併。</p>
+  <div class="wrap"><table id="dsumAll"></table></div>
+</section>
+
+<section class="card" id="secDoor">
   <h2>門（只需在這裡輸入一次）</h2>
   <p class="hint">門寬×數量會自動從該「範圍」的踢腳板長度扣除；若門同時開在另一個房間（例如臥室門開向客廳），在「踢腳另扣於」選該房間，那邊的踢腳板也會扣掉；門寬×門高（不超過牆高）×數量自動從壁磚面積扣除。狀態「追減」只影響木門數量，不影響扣減；「計入木門」選「否」的門（如 D5a 落地門）只扣踢腳，不列入木門彙總。</p>
   <div class="wrap"><table id="door"></table></div>
@@ -83,13 +89,13 @@ button.x{padding:3px 9px;color:var(--mute)}
   <div class="wrap"><table id="dsum"></table></div>
 </section>
 
-<section class="card">
+<section class="card" id="secFloor">
   <h2>地坪</h2>
   <p class="hint">地磚只填面積與扣減（可輸入 長*寬 運算式）；選石英磚才會出現踢腳板（只填長度，門自動扣）；選木地板不含踢腳板。客廳已含餐廳。</p>
   <div class="wrap"><table id="floor"></table></div>
 </section>
 
-<section class="card">
+<section class="card" id="secBath">
   <h2>浴室地磚／壁磚、廚房壁磚</h2>
   <p class="hint">地磚填面積；壁磚填壁長與高（預設 2.7 m），門自動扣；窗填在「其他扣減」，可直接輸入 寬*高（m），例如 0.85*1.4，多扇用 + 相加。</p>
   <div class="wrap"><table id="bath"></table></div>
@@ -101,7 +107,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1104-01';
+const APP_VER='F1-1104-03';
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyD0xzidj1f3V1B-nuNXoLdyqhhBi5z3dj0",
@@ -129,6 +135,8 @@ const WOOD='海島型複合木地板',NAT='自然面石英磚';
 const UNITS={
  F01:{label:'F01 棟 2 樓',note:'浴一依客變圖為全退、地坪同臥一，臥一面積請含延伸進浴一的部分；廚房裝修全退（地坪、壁磚追減），廚房門 D7 仍施作。'},
  F02:{label:'F02 棟 2 樓',note:'圖面註記：臥1輕隔間牆退、臥1門框扇全退（臥一室內門追減，故未列門）；主臥輕隔間牆位移，需留 30 cm 給裝修收尾。浴室圖面未見窗，其他扣減留白；無浴一。'}};
+UNITS.ALL={label:'統計',note:'統計頁只能看、不能輸入；要修改數字請切回各戶。'};
+const UNIT_IDS=['F01','F02'];
 const DEF={
  F01:()=>({
   floor:[fl('liv','客廳','TMB9090G10P'),fl('mb','主臥','TMB9090G10P','圖面約 3.3×4.8'),fl('b1','臥一','TMB9090G10P'),fl('b2','臥二','TMB9090G10P','圖面約 2.7×3.75'),fl('kit','廚房','GD90139','','追減',NAT)],
@@ -161,7 +169,7 @@ function build(u){
   });
   return out;
 }
-const rebuild=()=>{S=build(UNIT);};
+const rebuild=()=>{S=UNIT==='ALL'?{floor:[],bath:[],door:[]}:build(UNIT);};
 
 /* 寫入：500 ms 合併；帶版本號 _v，資料庫只收比較新的版本。被拒時抓最新一份、把自己改的欄位疊上去再寫一次 */
 function queueWrite(path,get,fields,replace){
@@ -238,7 +246,7 @@ function renderDoor(){
 function lockUI(){
   const ro=!canWrite;
   document.querySelectorAll('#door input,#door select,#floor input,#floor select,#bath input,#bath select,#loss').forEach(e=>e.disabled=ro);
-  $('addDoor').hidden=ro;$('reset').hidden=ro;
+  $('addDoor').hidden=ro;$('reset').hidden=ro||UNIT==='ALL';
 }
 function renderAll(){
   $('loss').value=LOSS;
@@ -246,7 +254,13 @@ function renderAll(){
   $('utag').textContent=UNITS[UNIT].label;
   $('note').textContent=UNITS[UNIT].note;
   document.title='客變下料計算 '+UNITS[UNIT].label;
-  renderDoor();renderFloor();renderBath();calc();lockUI();
+  const all=UNIT==='ALL';
+  ['secDoor','secFloor','secBath'].forEach(id=>$(id).hidden=all);$('secDoorAll').hidden=!all;
+  $('sumTitle').textContent='下料彙總';
+  $('sumHint').textContent=all?`目前 ${UNIT_IDS.length} 戶合計：施作中的項目依 類別＋品項＋型號 合併。片數＝每戶各自進位後相加（每戶分開下料）。`
+    :'施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。';
+  if(!all){renderDoor();renderFloor();renderBath();}
+  calc();lockUI();
 }
 function renderKeep(){
   const a=document.activeElement;let s=null;
@@ -256,49 +270,71 @@ function renderKeep(){
 }
 
 /* ---------- 計算 ---------- */
-const doorsOf=r=>S.door.filter(d=>d.r===r);
-const dW=r=>S.door.filter(d=>d.r===r||d.r2===r).reduce((a,d)=>a+(+d.w||0)/100*(+d.q||0),0);
-const dA=(r,H)=>doorsOf(r).reduce((a,d)=>a+(+d.w||0)/100*Math.min((+d.h||0)/100,H)*(+d.q||0),0);
 const set=(id,t)=>{const e=$(id);if(e)e.textContent=t;};
-function calc(){
-  const loss=1+(+LOSS||0)/100,G=new Map();
+const MODELS=[...Object.values(CAT.mats).flatMap(x=>x.models),...CAT.bf.models,...CAT.bw.models];
+const pcsOf=(g,gross)=>{if(g.unit==='m')return null;const p=(g.size||'').split('*').map(Number);return p.length===2&&p[0]>0&&p[1]>0?Math.ceil(gross/(p[0]*p[1]/10000)-1e-9):null;};
+/* 算一戶：回傳 材料群組 G 與 木門群組 D；show=true 時順便填各列的淨量格 */
+function agg(Su,show){
+  const G=new Map(),D=new Map();
   const add=(cat,item,m,size,unit,n)=>{if(n<=0)return;const k=[cat,item,m,size,unit].join('|');const g=G.get(k)||{cat,item,m,size,unit,n:0};g.n+=n;G.set(k,g);};
-  S.floor.forEach((r,i)=>{
-    const mat=CAT.mats[r.mat],n=Math.max(0,(+r.A||0)-ev(r.D));
-    set(`floor-${i}`,n?f2(n)+' m²':'—');
+  const dW=r=>Su.door.filter(d=>d.r===r||d.r2===r).reduce((a,d)=>a+(+d.w||0)/100*(+d.q||0),0);
+  const dA=(r,H)=>Su.door.filter(d=>d.r===r).reduce((a,d)=>a+(+d.w||0)/100*Math.min((+d.h||0)/100,H)*(+d.q||0),0);
+  const st=show?set:()=>{};
+  Su.floor.forEach((r,i)=>{
+    const mat=CAT.mats[r.mat]||CAT.mats['拋光石英磚'],n=Math.max(0,(+r.A||0)-ev(r.D));
+    st(`floor-${i}`,n?f2(n)+' m²':'—');
     if(r.st==='施作')add('地坪',r.mat,r.m,mat.size,'m²',n);
     if(mat.base){
       const dw=dW(r.r),b=Math.max(0,(+r.L||0)-dw);
-      set(`floor-${i}-d`,`門 −${f2(dw)} m`);set(`floor-${i}-b`,b?f2(b)+' m':'—');
+      st(`floor-${i}-d`,`門 −${f2(dw)} m`);st(`floor-${i}-b`,b?f2(b)+' m':'—');
       if(r.st==='施作')add('踢腳板',r.mat+' 踢腳',r.m,mat.size,'m',b);
     }
   });
-  S.bath.forEach((r,i)=>{
+  Su.bath.forEach((r,i)=>{
     const w=r.k==='w';let n,d=0;
-    if(w){const H=+r.H||0;d=dA(r.r,H);n=Math.max(0,(+r.L||0)*H-d-ev(r.E));set(`bath-${i}-d`,`−${f2(d)} m²`);}
+    if(w){const H=+r.H||0;d=dA(r.r,H);n=Math.max(0,(+r.L||0)*H-d-ev(r.E));st(`bath-${i}-d`,`−${f2(d)} m²`);}
     else n=Math.max(0,(+r.A||0)-ev(r.E));
-    set(`bath-${i}-e`,ev(r.E)?`= ${f2(ev(r.E))} m²`:'');
-    set(`bath-${i}`,n?f2(n)+' m²':'—');
+    st(`bath-${i}-e`,ev(r.E)?`= ${f2(ev(r.E))} m²`:'');
+    st(`bath-${i}`,n?f2(n)+' m²':'—');
     if(r.st==='施作')add(w?'壁磚':'浴室地磚','自然面石英磚',r.m,(w?CAT.bw:CAT.bf).size,'m²',n);
   });
-  const all=[...Object.values(CAT.mats).flatMap(x=>x.models),...CAT.bf.models,...CAT.bw.models];
-  const rows=[...G.values()].map(g=>{
-    const len=g.unit==='m',gross=g.n*loss,p=(g.size||'').split('*').map(Number);
-    const pcs=!len&&p.length===2&&p[0]>0&&p[1]>0?Math.ceil(gross/(p[0]*p[1]/10000)-1e-9):null;
-    return `<tr><td>${g.cat}</td><td>${g.item}</td><td>${g.m} <span class="mut">${mname(all,g.m)}</span></td><td>${g.size||'—'}</td><td class="r">${f2(g.n)} ${g.unit}</td><td class="r big">${f2(gross)} ${g.unit}</td><td class="r">${len?'—':f2(g.n*PING)}</td><td class="r big">${pcs==null?'—':pcs+' 片'}</td></tr>`;
-  });
-  $('sum').innerHTML='<tr><th>類別</th><th>品項</th><th>型號</th><th>尺寸 cm</th><th>淨量</th><th>含損耗</th><th>淨面積 坪</th><th>片數</th></tr>'
-   +(rows.join('')||'<tr><td colspan="8" class="empty">尚未輸入尺寸；填入面積／長度後會顯示彙總。</td></tr>');
-  const D=new Map();
-  S.door.forEach(r=>{
+  Su.door.forEach(r=>{
     const q=+r.q||0;if(r.st!=='施作'||r.c==='否'||q<=0)return;
     const k=[r.t,r.w,r.h,r.o].join('|'),g=D.get(k)||{t:r.t,w:r.w,h:r.h,o:r.o,q:0,rooms:[]};
     g.q+=q;g.rooms.push(r.r);D.set(k,g);
   });
+  return {G,D};
+}
+function calc(){
+  const loss=1+(+LOSS||0)/100;
+  if(UNIT==='ALL')return calcAll(loss);
+  const {G,D}=agg(S,true);
+  const rows=[...G.values()].map(g=>{
+    const len=g.unit==='m',gross=g.n*loss,pcs=pcsOf(g,gross);
+    return `<tr><td>${g.cat}</td><td>${g.item}</td><td>${g.m} <span class="mut">${mname(MODELS,g.m)}</span></td><td>${g.size||'—'}</td><td class="r">${f2(g.n)} ${g.unit}</td><td class="r big">${f2(gross)} ${g.unit}</td><td class="r">${len?'—':f2(g.n*PING)}</td><td class="r big">${pcs==null?'—':pcs+' 片'}</td></tr>`;
+  });
+  $('sum').innerHTML='<tr><th>類別</th><th>品項</th><th>型號</th><th>尺寸 cm</th><th>淨量</th><th>含損耗</th><th>淨面積 坪</th><th>片數</th></tr>'
+   +(rows.join('')||'<tr><td colspan="8" class="empty">尚未輸入尺寸；填入面積／長度後會顯示彙總。</td></tr>');
   $('dsum').innerHTML='<tr><th>門型</th><th>尺寸 cm</th><th>開向</th><th>合計</th><th>範圍</th></tr>'
    +([...D.values()].map(g=>`<tr><td>${g.t}</td><td>${g.w}×${g.h}</td><td>${g.o||'—'}</td><td class="r big">${g.q} 樘</td><td>${g.rooms.join('、')}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">尚無施作中的木門。</td></tr>');
 }
-
+/* 統計：所有戶分別計算，再依型號合併（只列合計） */
+function calcAll(loss){
+  const M=new Map(),DM=new Map();
+  UNIT_IDS.forEach(u=>{
+    const {G,D}=agg(build(u),false);
+    G.forEach((g,k)=>{const x=M.get(k)||Object.assign({},g,{n:0,gross:0,pcs:0});const gross=g.n*loss;x.n+=g.n;x.gross+=gross;x.pcs+=pcsOf(g,gross)||0;M.set(k,x);});
+    D.forEach((g,k)=>{const x=DM.get(k)||{t:g.t,w:g.w,h:g.h,o:g.o,q:0};x.q+=g.q;DM.set(k,x);});
+  });
+  const rows=[...M.values()].map(g=>{
+    const len=g.unit==='m';
+    return `<tr><td>${g.cat}</td><td>${g.item}</td><td>${g.m} <span class="mut">${mname(MODELS,g.m)}</span></td><td>${g.size||'—'}</td><td class="r">${f2(g.n)} ${g.unit}</td><td class="r big">${f2(g.gross)} ${g.unit}</td><td class="r">${len?'—':f2(g.n*PING)}</td><td class="r big">${len||!g.pcs?'—':g.pcs+' 片'}</td></tr>`;
+  });
+  $('sum').innerHTML='<tr><th>類別</th><th>品項</th><th>型號</th><th>尺寸 cm</th><th>淨量</th><th>含損耗</th><th>淨面積 坪</th><th>片數</th></tr>'
+   +(rows.join('')||'<tr><td colspan="8" class="empty">各戶都尚未輸入尺寸。</td></tr>');
+  $('dsumAll').innerHTML='<tr><th>門型</th><th>尺寸 cm</th><th>開向</th><th>合計</th></tr>'
+   +([...DM.values()].map(g=>`<tr><td>${g.t}</td><td>${g.w}×${g.h}</td><td>${g.o||'—'}</td><td class="r big">${g.q} 樘</td></tr>`).join('')||'<tr><td colspan="4" class="empty">尚無施作中的木門。</td></tr>');
+}
 
 /* ---------- 事件 ---------- */
 document.addEventListener('input',e=>{
@@ -370,7 +406,7 @@ rebuild();renderAll();
       if(ch.type==='removed')OV.delete(id);else OV.set(id,strip(d));
     });
     const before=JSON.stringify(S);rebuild();
-    if(JSON.stringify(S)!==before)renderKeep();
+    if(UNIT==='ALL')calc();else if(JSON.stringify(S)!==before)renderKeep();
     if(!loaded&&!snap.metadata.fromCache){loaded=true;clearTimeout(timer);idle();}
   },e=>setStatus('雲端資料連線中斷（'+((e&&e.code)||'未知')+'），請重新整理頁面。',true));
   DB.doc('settings/loss').onSnapshot(snap=>{
