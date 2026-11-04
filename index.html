@@ -57,7 +57,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 
 <section class="card">
   <div class="top">
-    <div><label>戶別（只影響你自己的畫面）</label><select id="unit"><option value="F01">F01 棟 2 樓</option><option value="F02">F02 棟 2 樓</option><option value="ALL">統計</option></select></div>
+    <div><label>戶別（只影響你自己的畫面）</label><select id="unit"></select></div>
     <div><label>損耗率 (%)（兩戶共用）</label><input id="loss" type="number" step="0.5" min="0"></div>
     <button id="reset" type="button" hidden>清除此戶輸入</button>
     <span class="grow"></span>
@@ -107,7 +107,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1104-03';
+const APP_VER='F1-1104-04';
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyD0xzidj1f3V1B-nuNXoLdyqhhBi5z3dj0",
@@ -135,8 +135,11 @@ const WOOD='海島型複合木地板',NAT='自然面石英磚';
 const UNITS={
  F01:{label:'F01 棟 2 樓',note:'浴一依客變圖為全退、地坪同臥一，臥一面積請含延伸進浴一的部分；廚房裝修全退（地坪、壁磚追減），廚房門 D7 仍施作。'},
  F02:{label:'F02 棟 2 樓',note:'圖面註記：臥1輕隔間牆退、臥1門框扇全退（臥一室內門追減，故未列門）；主臥輕隔間牆位移，需留 30 cm 給裝修收尾。浴室圖面未見窗，其他扣減留白；無浴一。'}};
+UNITS.F03={label:'F03 棟 2 樓',note:'浴一輕隔間牆退、門框扇退（浴一門追減，故未列門）；浴一地坪同臥一延伸，臥一面積請含浴一；臥二輕隔間調整、門框扇移位。客浴窗 DW6 只計浴室範圍內的上半部 0.85×0.95。'};
+UNITS.F05={label:'F05 棟 2 樓',note:'依標準圖施作；選樣：客廳、廚房自然面石英磚 GD90139，臥室木地板 SC-526F。無浴一；主浴無窗。'};
+UNITS.F06={label:'F06 棟 2 樓',note:'無客變（全標配）。主浴門為 D8（80×230）。客浴窗 W9 下半部為固定窗，整樘 0.75×2.15 扣除。無浴一；主浴無窗。'};
 UNITS.ALL={label:'統計',note:'統計頁只能看、不能輸入；要修改數字請切回各戶。'};
-const UNIT_IDS=['F01','F02'];
+const UNIT_IDS=['F01','F02','F03','F05','F06'];
 const DEF={
  F01:()=>({
   floor:[fl('liv','客廳','TMB9090G10P'),fl('mb','主臥','TMB9090G10P','圖面約 3.3×4.8'),fl('b1','臥一','TMB9090G10P'),fl('b2','臥二','TMB9090G10P','圖面約 2.7×3.75'),fl('kit','廚房','GD90139','','追減',NAT)],
@@ -145,7 +148,19 @@ const DEF={
  F02:()=>({
   floor:[fl('liv','客廳','SC-526W','','施作',WOOD),fl('mb','主臥','SC-526W','','施作',WOOD),fl('b1','臥一','SC-526W','','施作',WOOD),fl('b2','臥二','SC-526W','圖面約 2.4×3.3','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060B05N'),bw('mbw','主浴','CM4590B05N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N'),bw('kw','廚房','GD90139-C')],
-  door:[dr('d1','主臥','D6','施作','左開'),dr('d2','臥二','D6','施作','左開','客廳'),dr('d3','主浴','D8','施作','左開'),dr('d4','客浴','D8','施作','右開','客廳'),dr('d5','廚房','D7','施作','右開','客廳'),dr('d6','客廳','D5a','施作','','','否')]})};
+  door:[dr('d1','主臥','D6','施作','左開'),dr('d2','臥二','D6','施作','左開','客廳'),dr('d3','主浴','D8','施作','左開'),dr('d4','客浴','D8','施作','右開','客廳'),dr('d5','廚房','D7','施作','右開','客廳'),dr('d6','客廳','D5a','施作','','','否')]}),
+ F03:()=>({
+  floor:[fl('liv','客廳','SC-526W','','施作',WOOD),fl('mb','主臥','SC-526W','','施作',WOOD),fl('b1','臥一','SC-526W','含延伸進浴一','施作',WOOD),fl('b2','臥二','SC-526W','','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
+  bath:[bf('mbf','主浴','CM3060GH1N'),bw('mbw','主浴','CM4590GH1N','施作','0.78*1.4'),bf('cbf','客浴','CM3060G72N'),bw('cbw','客浴','CM4590G72N','施作','0.85*0.95'),bf('b1f','浴一','CM3060GH1N','追減'),bw('b1w','浴一','CM4590GH1N','追減'),bw('kw','廚房','GD90139-C')],
+  door:[dr('d1','主臥','D6','施作','右開','客廳'),dr('d2','臥一','D6','施作','右開','客廳'),dr('d3','臥二','D6','施作','左開','客廳'),dr('d4','主浴','D8a','施作','左開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+ F05:()=>({
+  floor:[fl('liv','客廳','GD90139','','施作',NAT),fl('mb','主臥','SC-526F','','施作',WOOD),fl('b1','臥一','SC-526F','','施作',WOOD),fl('b2','臥二','SC-526F','','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
+  bath:[bf('mbf','主浴','CM3060G72N'),bw('mbw','主浴','CM4590G72N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.85*1.4'),bw('kw','廚房','GD90139-C')],
+  door:[dr('d1','主臥','D6','施作','左開','客廳'),dr('d2','臥一','D6','施作','右開','客廳'),dr('d3','臥二','D6','施作','右開','客廳'),dr('d4','主浴','D8a','施作','左開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+ F06:()=>({
+  floor:[fl('liv','客廳','GD90139','','施作',NAT),fl('mb','主臥','GD90139','','施作',NAT),fl('b1','臥一','GD90139','','施作',NAT),fl('b2','臥二','GD90139','','施作',NAT),fl('kit','廚房','GD90139','','施作',NAT)],
+  bath:[bf('mbf','主浴','CM3060G72N'),bw('mbw','主浴','CM4590G72N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.75*2.15'),bw('kw','廚房','GD90139-C')],
+  door:[dr('d1','主臥','D6','施作','左開','客廳'),dr('d2','臥一','D6','施作','左開','客廳'),dr('d3','臥二','D6','施作','左開','客廳'),dr('d4','主浴','D8','施作','左開','主臥'),dr('d5','客浴','D8','施作','右開','客廳'),dr('d6','廚房','D7','施作','右開','客廳'),dr('d7','客廳','D5a','施作','','','否')]})};
 
 
 /* ---------- 雲端資料庫（Firebase）：任何人可讀；名單內的 Google 帳號才能寫 ---------- */
@@ -389,6 +404,7 @@ $('logout').onclick=()=>AUTH.signOut();
 
 /* ---------- 啟動 ---------- */
 $('ver').textContent=APP_VER;
+$('unit').innerHTML=[...UNIT_IDS,'ALL'].map(u=>`<option value="${u}">${UNITS[u].label}</option>`).join('');
 rebuild();renderAll();
 (()=>{
   if(!window.firebase||!FIREBASE_CONFIG.apiKey){setStatus(window.firebase?'尚未設定雲端資料庫，目前只顯示預設值。':'連不上雲端服務（程式庫載入失敗），請檢查網路後重新整理。',true);return;}
