@@ -107,7 +107,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1105-02';
+const APP_VER='F1-1105-03';
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyD0xzidj1f3V1B-nuNXoLdyqhhBi5z3dj0",
@@ -297,7 +297,7 @@ function renderFloor(){
   S.floor.forEach((r,i)=>{
     const mat=CAT.mats[r.mat],off=r.st==='追減'?' class="off"':'';
     h+=`<tr${off}><td class="room">${r.r}</td><td>${sel('floor',i,'st',['施作','追減'],r.st)}</td><td>${sel('floor',i,'mat',Object.keys(CAT.mats),r.mat)}</td><td>${msel('floor',i,'m',mat.models,r.m)}</td><td>${num('floor',i,'A',r.A,r.ph||'面積')}</td><td>${exp('floor',i,'D',r.D,'m² 或 長*寬')}</td><td class="r net" id="floor-${i}">—</td></tr>`;
-    if(mat.base&&r.r!=='廚房')h+=`<tr${off}><td class="room s">↳ 踢腳板</td><td></td><td class="mut">同地磚</td><td class="mut">${r.m}</td><td>${num('floor',i,'L',r.L,'長度')}</td><td class="r mut" id="floor-${i}-d">—</td><td class="r net" id="floor-${i}-b">—</td></tr>`;
+    if(mat.base&&r.r!=='廚房')h+=`<tr${off}><td class="room s">↳ 踢腳板</td><td></td><td class="mut">踢腳板</td><td></td><td>${num('floor',i,'L',r.L,'長度')}</td><td class="r mut" id="floor-${i}-d">—</td><td class="r net" id="floor-${i}-b">—</td></tr>`;
   });
   $('floor').innerHTML=h;
 }
@@ -357,7 +357,7 @@ function agg(Su,show){
     if(mat.base&&r.r!=='廚房'){
       const dw=dW(r.r),b=Math.max(0,(+r.L||0)-dw);
       st(`floor-${i}-d`,`門 −${f2(dw)} m`);st(`floor-${i}-b`,b?f2(b)+' m':'—');
-      if(r.st==='施作')add('踢腳板',r.mat+' 踢腳',r.m,mat.size,'m',b);
+      if(r.st==='施作')add('踢腳板','踢腳板','',mat.size,'m',b);
     }
   });
   Su.bath.forEach((r,i)=>{
