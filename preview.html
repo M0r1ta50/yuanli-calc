@@ -52,13 +52,14 @@ button.x{padding:3px 9px;color:var(--mute)}
 </head>
 <body>
 <main>
-<div style="background:#b4541a;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:600">測試頁（預覽版）：只供確認新版內容，不能輸入。顯示的是正式資料；確認後才會更新到正式網址。</div>
+<div style="background:#b4541a;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:600">測試頁（預覽版）：只供確認新版內容，不能輸入。顯示的是正式資料（輸入者的修改會即時同步過來）；確認後才會更新到正式網址。</div>
 <h1>客變後下料計算</h1>
 <div class="sub"><span class="tag">元利四季莊園</span><span class="tag" id="utag"></span><span>依建材選樣表與客變圖設定預設值，請輸入尺寸</span></div>
 
 <section class="card">
   <div class="top">
-    <div><label>戶別（只影響你自己的畫面）</label><select id="unit"></select></div>
+    <div><label>棟（只影響你自己的畫面）</label><select id="bld" style="width:110px"></select></div>
+    <div><label>戶別樓層</label><select id="unit"></select></div>
     <div><label>損耗率 (%)（兩戶共用）</label><input id="loss" type="number" step="0.5" min="0"></div>
     <button id="reset" type="button" hidden>清除此戶輸入</button>
     <span class="grow"></span>
@@ -108,7 +109,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1105-03（測試頁）';
+const APP_VER='F1-1109-01（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -152,20 +153,22 @@ UNITS['F03-04F']={label:'F03 棟 4 樓',note:'依標準圖施作。客廳、廚�
 UNITS['F06-04F']={label:'F06 棟 4 樓',note:'主臥、臥一、臥二退輕隔間與門框扇（三間臥室門不列）；客餐廳與臥室不貼地磚，作隔音墊＋壓層（地坪追減）。廚房 GD90139 施作。客浴窗 W9 整樘 0.75×2.15；主浴無窗。'};
 UNITS['F07-04F']={label:'F07 棟 4 樓',note:'無客變。客廳、廚房 GD90139，臥室 SC-526W 珍珠白。主浴門 D8、無窗；客浴窗 W3。'};
 UNITS.ALL={label:'統計',note:'統計頁只能看、不能輸入；要修改數字請切回各戶。'};
+/* 戶別 ID：2 樓舊戶為 F01 這種，其餘為 F01-03F；下面把 ID 拆成 棟／戶／樓 */
+const META_U=u=>{const b=u[0],h=u.slice(1,3),f=u.includes('-')?parseInt(u.split('-')[1]):2;return{b,h,f};};
 const UNIT_IDS=['F01','F02','F03','F05','F06','F01-03F','F02-03F','F03-03F','F05-03F','F06-03F','F07-03F','F01-04F','F02-04F','F03-04F','F06-04F','F07-04F'];
 const DEF={
  F01:()=>({
   floor:[fl('liv','客廳','TMB9090G10P'),fl('mb','主臥','TMB9090G10P','圖面約 3.3×4.8'),fl('b1','臥一','TMB9090G10P'),fl('b2','臥二','TMB9090G10P','圖面約 2.7×3.75'),fl('kit','廚房','GD90139','','追減',NAT)],
   bath:[bf('mbf','主浴','CM3060B05N'),bw('mbw','主浴','CM4590B05N','施作','0.65*1.4'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.85*1.0'),bf('b1f','浴一','CM3060GH1N','追減'),bw('b1w','浴一','CM4590GH1N','追減'),bw('kw','廚房','GD90139-C','追減')],
-  door:[dr('d1','主臥','D6','施作','左開','客廳'),dr('d2','臥一','D6','施作','左開','客廳'),dr('d3','臥二','D6','施作','右開','客廳'),dr('d4','主浴','D8a','施作','右開','主臥'),dr('d5','客浴','D8','施作','右開','客廳'),dr('d6','廚房','D7','施作','右開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+  door:[dr('d1','主臥','D6','施作','左開','客廳'),dr('d2','臥一','D6','施作','左開','客廳'),dr('d3','臥二','D6','施作','右開','客廳'),dr('d4','主浴','D8a','施作','右開','主臥'),dr('d5','客浴','D8','施作','右開','客廳'),dr('d6','廚房','D7','施作','右開','客廳'),dr('d7','客廳','D5a','施作','右開','','否')]}),
  F02:()=>({
   floor:[fl('liv','客廳','SC-526W','','施作',WOOD),fl('mb','主臥','SC-526W','','施作',WOOD),fl('b1','臥一','SC-526W','','施作',WOOD),fl('b2','臥二','SC-526W','圖面約 2.4×3.3','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060B05N'),bw('mbw','主浴','CM4590B05N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.75*2.15'),bw('kw','廚房','GD90139-C')],
-  door:[dr('d1','主臥','D6','施作','左開'),dr('d2','臥二','D6','施作','左開','客廳'),dr('d3','主浴','D8','施作','左開'),dr('d4','客浴','D8','施作','右開','客廳'),dr('d5','廚房','D7','施作','右開','客廳'),dr('d6','客廳','D5a','施作','','','否')]}),
+  door:[dr('d1','主臥','D6','施作','右開'),dr('d2','臥二','D6','施作','右開','客廳'),dr('d3','主浴','D8','施作','右開'),dr('d4','客浴','D8','施作','左開','客廳'),dr('d5','廚房','D7','施作','左開','客廳'),dr('d6','客廳','D5a','施作','左開','','否')]}),
  F03:()=>({
   floor:[fl('liv','客廳','SC-526W','','施作',WOOD),fl('mb','主臥','SC-526W','','施作',WOOD),fl('b1','臥一','SC-526W','含延伸進浴一','施作',WOOD),fl('b2','臥二','SC-526W','','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060GH1N'),bw('mbw','主浴','CM4590GH1N','施作','0.78*1.4'),bf('cbf','客浴','CM3060G72N'),bw('cbw','客浴','CM4590G72N','施作','0.85*0.95'),bf('b1f','浴一','CM3060GH1N','追減'),bw('b1w','浴一','CM4590GH1N','追減'),bw('kw','廚房','GD90139-C')],
-  door:[dr('d1','主臥','D6','施作','右開','客廳'),dr('d2','臥一','D6','施作','右開','客廳'),dr('d3','臥二','D6','施作','左開','客廳'),dr('d4','主浴','D8a','施作','左開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+  door:[dr('d1','主臥','D6','施作','右開','客廳'),dr('d2','臥一','D6','施作','左開','客廳'),dr('d3','臥二','D6','施作','右開','客廳'),dr('d4','主浴','D8a','施作','左開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','左開','','否')]}),
  F05:()=>({
   floor:[fl('liv','客廳','GD90139','','施作',NAT),fl('mb','主臥','SC-526F','','施作',WOOD),fl('b1','臥一','SC-526F','','施作',WOOD),fl('b2','臥二','SC-526F','','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060G72N'),bw('mbw','主浴','CM4590G72N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.85*1.4'),bw('kw','廚房','GD90139-C')],
@@ -181,7 +184,7 @@ const DEF={
  'F02-03F':()=>({
   floor:[fl('liv','客廳','SC-526F','含原臥一、臥二範圍','施作',WOOD),fl('mb','主臥','SC-526F','','施作',WOOD),fl('b1','臥一','SC-526F','併入客廳','追減',WOOD),fl('b2','臥二','SC-526F','併入客廳','追減',WOOD),fl('kit','廚房','GD90140','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060G72N'),bw('mbw','主浴','CM4590G72N'),bw('kw','廚房','GD90139-C')],
-  door:[dr('d1','主臥','D6','施作','右開','客廳'),dr('d4','主浴','D8','施作','右開','主臥'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+  door:[dr('d1','主臥','D6','施作','右開','客廳'),dr('d4','主浴','D8','施作','右開','主臥'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','左開','','否')]}),
  'F03-03F':()=>({
   floor:[fl('liv','客廳','GD90140','','施作',NAT),fl('mb','主臥','SC-526F','','施作',WOOD),fl('b1','臥一','SC-526F','','施作',WOOD),fl('b2','臥二','SC-526F','','施作',WOOD),fl('kit','廚房','GD90139','','追減',NAT)],
   bath:[bf('mbf','主浴','CM3060G72N'),bw('mbw','主浴','CM4590G72N','施作','0.78*1.4'),bf('cbf','客浴','CM3060G72N'),bw('cbw','客浴','CM4590G72N','施作','0.85*0.95'),bf('b1f','浴一','CM3060G72N'),bw('b1w','浴一','CM4590G72N','施作','0.85*1.4'),bw('kw','廚房','GD90139-C','追減')],
@@ -189,7 +192,7 @@ const DEF={
  'F05-03F':()=>({
   floor:[fl('liv','客廳','GD90139','','施作',NAT),fl('mb','主臥','SC-526F','','施作',WOOD),fl('b1','臥一','SC-526F','','施作',WOOD),fl('b2','臥二','SC-526F','','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060B05N'),bw('mbw','主浴','CM4590B05N'),bf('cbf','客浴','CM3060B05N'),bw('cbw','客浴','CM4590B05N','施作','0.85*1.4'),bw('kw','廚房','GD90139-C')],
-  door:[dr('d1','主臥','D6','施作','左開','客廳'),dr('d2','臥一','D6','施作','右開','客廳'),dr('d3','臥二','D6','施作','右開','客廳'),dr('d4','主浴','D8a','施作','左開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','','','否')]}),
+  door:[dr('d1','主臥','D6','施作','左開','客廳'),dr('d2','臥一','D6','施作','右開','客廳'),dr('d3','臥二','D6','施作','右開','客廳'),dr('d4','主浴','D8a','施作','左開','主臥'),dr('d5','客浴','D8','施作','左開','客廳'),dr('d6','廚房','D7','施作','左開','客廳'),dr('d7','客廳','D5a','施作','右開','','否')]}),
  'F06-03F':()=>({
   floor:[fl('liv','客廳','SC-526H','','施作',WOOD),fl('mb','主臥','SC-526H','','施作',WOOD),fl('b1','臥一','SC-526H','','施作',WOOD),fl('b2','臥二','SC-526H','','施作',WOOD),fl('kit','廚房','GD90139','','施作',NAT)],
   bath:[bf('mbf','主浴','CM3060GH1N'),bw('mbw','主浴','CM4590GH1N'),bf('cbf','客浴','CM3060GH1N'),bw('cbw','客浴','CM4590GH1N','施作','0.75*2.15'),bw('kw','廚房','GD90139-C')],
@@ -225,7 +228,9 @@ let DB=null,AUTH=null,ME=null,canWrite=false,UNIT='F01',LOSS=5,S={floor:[],bath:
 const OV=new Map();   // 文件id -> 使用者改過的欄位（差異）
 const VER=new Map();  // 路徑 -> 雲端版本號 _v
 const W=new Map();    // 寫入佇列
-try{const u=localStorage.getItem('yl-unit');if(UNITS[u])UNIT=u;}catch(e){}
+let BLD='F';
+try{const u=localStorage.getItem('yl-unit');if(UNITS[u])UNIT=u;const b=localStorage.getItem('yl-bld');if(b)BLD=b;}catch(e){}
+if(UNIT!=='ALL')BLD=META_U(UNIT).b;
 
 const setStatus=(t,bad)=>{const e=$('sync');e.textContent=t;e.className=bad?'bad':'';};
 const META=['_v','_by','_t'];
@@ -320,16 +325,25 @@ function lockUI(){
   document.querySelectorAll('#door input,#door select,#floor input,#floor select,#bath input,#bath select,#loss').forEach(e=>e.disabled=ro);
   $('addDoor').hidden=ro;$('reset').hidden=ro||UNIT==='ALL';
 }
+function unitsOf(b){return UNIT_IDS.filter(u=>META_U(u).b===b).sort((x,y)=>{const a=META_U(x),c=META_U(y);return a.f-c.f||(a.h<c.h?-1:a.h>c.h?1:0);});}
+function statIds(){return BLD==='*'?UNIT_IDS:unitsOf(BLD);}
+function saveSel(){try{localStorage.setItem('yl-unit',UNIT);localStorage.setItem('yl-bld',BLD);}catch(e){}}
+let _selB=null;
+function fillUnitSel(){
+  if(_selB===BLD)return;_selB=BLD;
+  $('unit').innerHTML=BLD==='*'?'<option value="ALL">統計</option>'
+   :unitsOf(BLD).map(u=>{const m=META_U(u);return `<option value="${u}">${m.h} 戶 ${m.f} 樓</option>`;}).join('')+'<option value="ALL">本棟統計</option>';
+}
 function renderAll(){
   $('loss').value=LOSS;
-  $('unit').value=UNIT;
+  fillUnitSel();$('bld').value=BLD;$('unit').value=UNIT;
   $('utag').textContent=UNITS[UNIT].label;
   $('note').textContent=UNITS[UNIT].note;
   document.title='【測試頁】客變下料計算 '+UNITS[UNIT].label;
   const all=UNIT==='ALL';
   ['secDoor','secFloor','secBath'].forEach(id=>$(id).hidden=all);$('secDoorAll').hidden=!all;
   $('sumTitle').textContent='下料彙總';
-  $('sumHint').textContent=all?`目前 ${UNIT_IDS.length} 戶合計：施作中的項目依 類別＋品項＋型號 合併。片數＝每戶各自進位後相加（每戶分開下料）。`
+  $('sumHint').textContent=all?`${BLD==='*'?'全部棟':BLD+' 棟'} 目前 ${statIds().length} 戶合計：施作中的項目依 類別＋品項＋型號 合併。片數＝每戶各自進位後相加（每戶分開下料）。`
     :'施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。';
   if(!all){renderDoor();renderFloor();renderBath();}
   calc();lockUI();
@@ -393,7 +407,7 @@ function calc(){
 /* 統計：所有戶分別計算，再依型號合併（只列合計） */
 function calcAll(loss){
   const M=new Map(),DM=new Map();
-  UNIT_IDS.forEach(u=>{
+  statIds().forEach(u=>{
     const {G,D}=agg(build(u),false);
     G.forEach((g,k)=>{const x=M.get(k)||Object.assign({},g,{n:0,gross:0,pcs:0});const gross=g.n*loss;x.n+=g.n;x.gross+=gross;x.pcs+=pcsOf(g,gross)||0;M.set(k,x);});
     D.forEach((g,k)=>{const x=DM.get(k)||{t:g.t,w:g.w,h:g.h,o:g.o,q:0};x.q+=g.q;DM.set(k,x);});
@@ -411,7 +425,8 @@ function calcAll(loss){
 /* ---------- 事件 ---------- */
 document.addEventListener('input',e=>{
   const el=e.target;
-  if(el.id==='unit'){UNIT=el.value;try{localStorage.setItem('yl-unit',UNIT);}catch(x){}rebuild();renderAll();return;}
+  if(el.id==='bld'){BLD=el.value;const us=unitsOf(BLD);UNIT=BLD==='*'||!us.length?'ALL':us[0];saveSel();rebuild();renderAll();return;}
+  if(el.id==='unit'){UNIT=el.value;saveSel();rebuild();renderAll();return;}
   if(!canWrite)return;
   if(el.id==='loss'){LOSS=el.value;calc();queueWrite('settings/loss',()=>({v:LOSS}),{v:LOSS});return;}
   const t=el.dataset.t;if(!t)return;
@@ -461,7 +476,8 @@ $('logout').onclick=()=>AUTH.signOut();
 
 /* ---------- 啟動 ---------- */
 $('ver').textContent=APP_VER;
-$('unit').innerHTML=[...UNIT_IDS,'ALL'].map(u=>`<option value="${u}">${UNITS[u].label}</option>`).join('');
+const BLDS=[...new Set(UNIT_IDS.map(u=>META_U(u).b))].sort();
+$('bld').innerHTML=BLDS.map(b=>`<option value="${b}">${b} 棟</option>`).join('')+'<option value="*">全部棟統計</option>';
 rebuild();renderAll();
 (()=>{
   if(!window.firebase||!FIREBASE_CONFIG.apiKey){setStatus(window.firebase?'尚未設定雲端資料庫，目前只顯示預設值。':'連不上雲端服務（程式庫載入失敗），請檢查網路後重新整理。',true);return;}
@@ -488,7 +504,7 @@ rebuild();renderAll();
     if(!(w&&w.pend)&&d.v!==LOSS){LOSS=d.v;$('loss').value=LOSS;calc();}
   },()=>{});
   AUTH.onAuthStateChanged(async u=>{
-    if(typeof PREVIEW!=='undefined'){$('login').hidden=true;$('logout').hidden=true;if(loaded)setStatus('測試頁：只供確認，不能輸入');return;}
+    if(typeof PREVIEW!=='undefined'){$('login').hidden=true;$('logout').hidden=true;if(loaded)setStatus('測試頁：顯示正式資料，只供確認，不能輸入');return;}
     ME=u;canWrite=false;
     $('login').hidden=!!u;$('logout').hidden=!u;$('who').textContent=u?u.email:'';
     if(u){                                       // 試寫一筆，確認在不在輸入名單（名單只存在資料庫規則）
