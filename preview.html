@@ -20,6 +20,8 @@ h1{font-size:21px;margin:0 0 4px}
 h2{font-size:16px;margin:0 0 4px}
 .hint{color:var(--mute);font-size:12.5px;margin:0 0 10px}
 .wrap{overflow-x:auto}
+.stI{color:var(--acc);font-weight:600;white-space:nowrap}.stW{color:var(--bad);white-space:nowrap}
+.stS{width:88px;padding:3px 4px;font-size:12.5px}.stN{background:var(--accbg)}.stU{background:rgba(180,84,26,.16)}
 table{border-collapse:collapse;width:100%;min-width:680px}
 th{font-weight:600;font-size:12px;color:var(--mute);text-align:left;padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:4px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -83,6 +85,11 @@ button.x{padding:3px 9px;color:var(--mute)}
   <p class="hint">施作中、計入木門的門，依 門型＋尺寸＋開向 合併。</p>
   <div class="wrap"><table id="dsumAll"></table></div>
 </section>
+<section class="card" id="secImp" hidden>
+  <h2>匯入狀況（每一戶有沒有匯進網頁）</h2>
+  <p class="hint" id="impHint"></p>
+  <div id="impBody"></div>
+</section>
 
 <section class="card" id="secDoor">
   <h2>門（只需在這裡輸入一次）</h2>
@@ -110,7 +117,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1110-03（測試頁）';
+const APP_VER='F1-1110-05（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -525,7 +532,7 @@ async function flush(path){
         const base=replace?w.get():Object.assign({},strip(cur),fields);
         const d2=stamp(base,(cur._v||0)+1);
         await DB.doc(path).set(d2);VER.set(path,d2._v);
-        if(path.startsWith('rows/'))OV.set(path.slice(5),strip(d2));else LOSS=d2.v;
+        if(path.startsWith('rows/'))OV.set(path.slice(5),strip(d2));else if(path.startsWith('settings/st_'))ST[path.slice(12)]=strip(d2);else LOSS=d2.v;
         rebuild();renderKeep();setStatus('已同步 ✓（已與其他人的修改合併）');
       }catch(e2){
         if(e2&&e2.code==='permission-denied'){canWrite=false;setStatus('寫入被拒：這個帳號不在輸入名單，請洽管理者。',true);renderAll();}
@@ -580,6 +587,42 @@ function lockUI(){
   $('addDoor').hidden=ro;$('reset').hidden=ro||UNIT==='ALL';
 }
 function unitsOf(b){return UNIT_IDS.filter(u=>META_U(u).b===b).sort((x,y)=>{const a=META_U(x),c=META_U(y);return a.f-c.f||(a.h<c.h?-1:a.h>c.h?1:0);});}
+/* 有客變資料夾的戶別清單（工務所資料夾快照）：每項＝戶號2碼＋樓層2碼 */
+const HAS_DATE='2026-11-10';
+const HAS={A:'0104 0105 0106 0107 0108 0109 0110 0111 0112 0113 0114 0204 0205 0206 0207 0209 0210 0211 0213 0217 0304 0305 0306 0307 0308 0309 0310 0312 0314 0504 0505 0506 0507 0508 0509 0510 0511 0512 0515 0604 0605 0606 0607 0608 0609 0610 0611 0612 0613 0615 0618 0704 0705 0706 0707 0708 0709 0710 0711 0712 0713 0717 0805 0806 0807 0808 0810 0811 0813 0815 0816 0817 0904 0905 0906 0907 0908 0909 0910 0911 0912 0913 0914',B:'0107 0109 0110 0202 0203 0204 0205 0206 0208 0211 0213 0302 0303 0304 0305 0306 0309 0502 0503 0504 0507 0603 0604 0605 0606 0607 0608 0610 0611 0613 0614 0702 0703 0705 0706 0707',C:'0102 0103 0104 0105 0108 0109 0202 0203 0204 0205 0206 0302 0303 0305 0307 0312 0503 0504 0505 0506 0602 0603 0604 0605 0606 0608 0609 0614 0702 0703 0704 0705 0709 0710 0713 0809',D:'0103 0104 0105 0106 0108 0202 0203 0204 0207 0208 0209 0211 0302 0303 0304 0305 0306 0307 0309 0313 0503 0504 0505 0506 0508 0511 0602 0603 0604 0605 0606 0607 0608 0616 0702 0703 0704 0705 0706 0708',E:'0102 0107 0108 0109 0110 0115 0202 0203 0204 0205 0206 0207 0208 0209 0210 0211 0212 0213 0302 0303 0304 0305 0306 0307 0308 0310 0312 0314 0316 0504 0505 0507 0508 0509 0510 0602 0603 0604 0605 0606 0607 0608 0609 0610 0611 0612 0702 0703 0704 0705 0706 0707 0708 0709 0710 0711 0713 0717 0807 0810 0811',F:'0102 0103 0104 0105 0106 0107 0202 0203 0204 0205 0206 0207 0209 0302 0303 0304 0305 0306 0307 0309 0310 0311 0502 0503 0505 0507 0509 0510 0511 0513 0516 0602 0603 0604 0605 0606 0607 0610 0703 0704 0705 0706 0707 0710 0714 0715 0720',G:'0104 0105 0106 0109 0110 0111 0113 0203 0204 0205 0207 0211 0303 0310 0311 0502 0503 0504 0505 0506 0507 0508 0509 0510 0519 0602 0603 0604 0605 0606 0607 0609 0610 0611',H:'0104 0107 0112 0303 0503 0504 0505 0506 0507 0510 0511 0512 0513 0520 0602'};
+/* 全部戶別名冊（依業務部單戶圖檔名）：[起樓,迄樓,標準戶號,{例外樓層:戶號}] */
+const ROSTER={A:[4,34,'01 02 03 05 06 07 08 09',{}],B:[2,25,'01 02 03 05 06 07 08',{}],C:[2,21,'01 02 03 05 06 07 08',{}],
+ D:[2,34,'01 02 03 05 06 07 08',{23:'01 02 05 06 07',24:'01 02 05 06 07 08'}],
+ E:[2,34,'01 02 03 05 06 07 08',{24:'01 03 05 06 07 08',31:'01 02 03 06 07 08',32:'01 03 05 06 07 08'}],
+ F:[2,26,'01 02 03 05 06 07',{23:'01 02 03 06',24:'01 02 03 06 07'}],G:[2,33,'01 02 03 05 06',{}],H:[2,33,'01 02 03 05 06',{}]};
+const ST={};          // 棟 -> {戶號樓層: 'N' 無客變 | 'U' 未售}（雲端 settings/st_棟）
+const ST_OPEN=new Set();
+function renderImp(){
+  const sec=$('secImp');const show=UNIT==='ALL';sec.hidden=!show;if(!show)return;
+  const blds=BLD==='*'?Object.keys(ROSTER):(ROSTER[BLD]?[BLD]:[]);
+  const imp={};UNIT_IDS.forEach(u=>{const m=META_U(u);(imp[m.b]=imp[m.b]||new Set()).add(m.h+String(m.f).padStart(2,'0'));});
+  const tot={n:0,i:0,w:0,N:0,U:0,x:0};let html='';
+  blds.forEach(b=>{
+    const [f0,f1,std,ex]=ROSTER[b],cols=std.split(' '),has=new Set((HAS[b]||'').split(' ')),st=ST[b]||{},c={n:0,i:0,w:0,N:0,U:0,x:0};let rows='';
+    for(let f=f0;f<=f1;f++){
+      const us=new Set((ex[f]||std).split(' '));
+      rows+=`<tr><td><b>${f}F</b></td>`+cols.map(h=>{
+        if(!us.has(h))return '<td class="mut">—</td>';
+        const k=h+String(f).padStart(2,'0');c.n++;
+        if(imp[b]&&imp[b].has(k)){c.i++;return '<td><span class="stI">✓ 已匯入</span></td>';}
+        if(has.has(k)){c.w++;return '<td><span class="stW">客變待匯入</span></td>';}
+        const v=st[k]||'';c[v||'x']++;
+        return `<td><select class="stS st${v||'X'}" data-st="${b}${k}"${canWrite?'':' disabled'}><option value=""${v?'':' selected'}>未設定</option><option value="N"${v==='N'?' selected':''}>無客變</option><option value="U"${v==='U'?' selected':''}>未售</option></select></td>`;
+      }).join('')+'</tr>';
+    }
+    Object.keys(c).forEach(k=>tot[k]+=c[k]);
+    const open=blds.length===1||ST_OPEN.has(b);
+    html+=`<details data-b="${b}"${open?' open':''} style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>${b} 棟</b>　共 ${c.n} 戶：已匯入 ${c.i}・客變待匯入 ${c.w}・無客變 ${c.N}・未售 ${c.U}・未設定 ${c.x}</summary>
+<div class="wrap"><table style="min-width:${cols.length*96+60}px"><thead><tr><th>樓層</th>${cols.map(h=>`<th>${h} 戶</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></details>`;
+  });
+  $('impHint').textContent=`${BLD==='*'?'全部棟':BLD+' 棟'}共 ${tot.n} 戶：已匯入 ${tot.i}・客變待匯入 ${tot.w}・無客變 ${tot.N}・未售 ${tot.U}・未設定 ${tot.x}。「已匯入」＝數量已在網頁裡；「客變待匯入」＝工務所已有客變資料（${HAS_DATE} 清單）但還沒匯進來；其餘請輸入者用下拉選單選「無客變」或「未售」。`+(BLD==='*'?'點棟名可展開。':'');
+  $('impBody').innerHTML=html;
+}
 function statIds(){return BLD==='*'?UNIT_IDS:unitsOf(BLD);}
 function saveSel(){try{localStorage.setItem('yl-unit',UNIT);localStorage.setItem('yl-bld',BLD);}catch(e){}}
 let _selB=null;
@@ -601,6 +644,7 @@ function renderAll(){
   $('sumHint').textContent=all?`${BLD==='*'?'全部棟':BLD+' 棟'} 目前 ${statIds().length} 戶合計：施作中的項目依 類別＋品項＋型號 合併。片數＝每戶各自進位後相加（每戶分開下料）。`
     :'施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。';
   if(!all){renderDoor();renderFloor();renderBath();}
+  renderImp();
   calc();lockUI();
 }
 function renderKeep(){
@@ -683,6 +727,7 @@ document.addEventListener('input',e=>{
   if(el.id==='bld'){BLD=el.value;const us=unitsOf(BLD);UNIT=BLD==='*'||!us.length?'ALL':us[0];saveSel();rebuild();renderAll();return;}
   if(el.id==='unit'){UNIT=el.value;saveSel();rebuild();renderAll();return;}
   if(!canWrite)return;
+  if(el.dataset.st){const b=el.dataset.st[0],k=el.dataset.st.slice(1);ST[b]=Object.assign({},ST[b],{[k]:el.value});queueWrite('settings/st_'+b,()=>ST[b],{[k]:el.value});renderImp();return;}
   if(el.id==='loss'){LOSS=el.value;calc();queueWrite('settings/loss',()=>({v:LOSS}),{v:LOSS});return;}
   const t=el.dataset.t;if(!t)return;
   const row=S[t][el.dataset.i],k=el.dataset.k;if(!row)return;
@@ -692,6 +737,7 @@ document.addEventListener('input',e=>{
   patch(row,t,o);
   if(el.tagName==='SELECT')renderAll();else calc();
 });
+document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.b){if(d.open)ST_OPEN.add(d.dataset.b);else ST_OPEN.delete(d.dataset.b);}},true);
 document.addEventListener('click',e=>{
   const d=e.target.dataset.del;
   if(d!==undefined&&canWrite){                   // 刪門＝留標記，不真刪
@@ -753,6 +799,11 @@ rebuild();renderAll();
     if(UNIT==='ALL')calc();else if(JSON.stringify(S)!==before)renderKeep();
     if(!loaded&&!snap.metadata.fromCache){loaded=true;clearTimeout(timer);idle();}
   },e=>setStatus('雲端資料連線中斷（'+((e&&e.code)||'未知')+'），請重新整理頁面。',true));
+  Object.keys(ROSTER).forEach(b=>DB.doc('settings/st_'+b).onSnapshot(snap=>{
+    const p='settings/st_'+b,w=W.get(p);if(!snap.exists)return;
+    const d=snap.data();VER.set(p,Math.max(VER.get(p)||0,d._v||0));
+    if(w&&w.pend)return;ST[b]=strip(d);if(UNIT==='ALL')renderImp();
+  },()=>{}));
   DB.doc('settings/loss').onSnapshot(snap=>{
     const w=W.get('settings/loss');if(!snap.exists)return;
     const d=snap.data();VER.set('settings/loss',Math.max(VER.get('settings/loss')||0,d._v||0));
