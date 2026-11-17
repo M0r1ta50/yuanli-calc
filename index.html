@@ -21,6 +21,11 @@ h2{font-size:16px;margin:0 0 4px}
 .hint{color:var(--mute);font-size:12.5px;margin:0 0 10px}
 .wrap{overflow-x:auto}
 .stI{color:var(--acc);font-weight:600;white-space:nowrap}.stW{color:var(--bad);white-space:nowrap}
+.stD{display:inline-block;background:var(--accbg);color:var(--acc);font-weight:700;border-radius:5px;padding:1px 6px;white-space:nowrap}.stP{color:var(--mute);white-space:nowrap}
+.leg{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 12px;padding:9px 11px;background:var(--inp);border:1px solid var(--line);border-radius:9px}
+.legi{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mute)}
+.legi .stS{width:88px;flex:none}
+.legb{display:inline-block;border:1px dashed var(--line);border-radius:5px;padding:1px 6px}
 .stS{width:88px;padding:3px 4px;font-size:12.5px}.stN{background:var(--accbg)}.stU{background:rgba(180,84,26,.16)}
 table{border-collapse:collapse;width:100%;min-width:680px}
 th{font-weight:600;font-size:12px;color:var(--mute);text-align:left;padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -85,8 +90,14 @@ button.x{padding:3px 9px;color:var(--mute)}
   <div class="wrap"><table id="dsumAll"></table></div>
 </section>
 <section class="card" id="secImp" hidden>
-  <h2>匯入狀況（每一戶有沒有匯進網頁）</h2>
+  <h2>匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）</h2>
   <p class="hint" id="impHint"></p>
+  <div class="leg">
+    <span class="legi"><span class="stD">✓ 已輸入</span>輸入者已經在那一戶填過面積或長度</span>
+    <span class="legi"><span class="stP legb">待輸入</span>預設值已匯入，但還沒有人填數量</span>
+    <span class="legi"><span class="stW legb">客變待匯入</span>工務所已有客變資料，但還沒匯進網頁</span>
+    <span class="legi"><select class="stS" disabled><option>未設定</option></select>請輸入者選「無客變」或「未售」</span>
+  </div>
   <div id="impBody"></div>
 </section>
 
@@ -116,7 +127,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1117-01';
+const APP_VER='F1-1117-03';
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyD0xzidj1f3V1B-nuNXoLdyqhhBi5z3dj0",
@@ -1203,19 +1214,32 @@ const ROSTER={A:[4,34,'01 02 03 05 06 07 08 09',{}],B:[2,25,'01 02 03 05 06 07 0
  F:[2,26,'01 02 03 05 06 07',{23:'01 02 03 06',24:'01 02 03 06 07'}],G:[2,33,'01 02 03 05 06',{}],H:[2,33,'01 02 03 05 06',{}]};
 const ST={};          // 棟 -> {戶號樓層: 'N' 無客變 | 'U' 未售}（雲端 settings/st_棟）
 const ST_OPEN=new Set();
+/* 已經有輸入者填過尺寸（面積 A／長度 L／扣減 D／其他扣減 E）的戶別 */
+const SZK=['A','L','D','E'];
+function typedSet(){
+  const s=new Set();
+  OV.forEach((o,id)=>{
+    if(!o||o.deleted)return;
+    for(const k of SZK){const v=o[k];if(v!=null&&String(v).trim()!==''){s.add(id.split('~')[0]);break;}}
+  });
+  return s;
+}
 function renderImp(){
   const sec=$('secImp');const show=UNIT==='ALL';sec.hidden=!show;if(!show)return;
   const blds=BLD==='*'?Object.keys(ROSTER):(ROSTER[BLD]?[BLD]:[]);
-  const imp={};UNIT_IDS.forEach(u=>{const m=META_U(u);(imp[m.b]=imp[m.b]||new Set()).add(m.h+String(m.f).padStart(2,'0'));});
-  const tot={n:0,i:0,w:0,N:0,U:0,x:0};let html='';
+  const imp={};UNIT_IDS.forEach(u=>{const m=META_U(u),k=m.h+String(m.f).padStart(2,'0');const x=imp[m.b]=imp[m.b]||Object.assign(new Set(),{u:{}});x.add(k);x.u[k]=u;});
+  const typed=typedSet();
+  const tot={n:0,i:0,d:0,w:0,N:0,U:0,x:0};let html='';
   blds.forEach(b=>{
-    const [f0,f1,std,ex]=ROSTER[b],cols=std.split(' '),has=new Set((HAS[b]||'').split(' ')),st=ST[b]||{},c={n:0,i:0,w:0,N:0,U:0,x:0};let rows='';
+    const [f0,f1,std,ex]=ROSTER[b],cols=std.split(' '),has=new Set((HAS[b]||'').split(' ')),st=ST[b]||{},c={n:0,i:0,d:0,w:0,N:0,U:0,x:0};let rows='';
     for(let f=f0;f<=f1;f++){
       const us=new Set((ex[f]||std).split(' '));
       rows+=`<tr><td><b>${f}F</b></td>`+cols.map(h=>{
         if(!us.has(h))return '<td class="mut">—</td>';
         const k=h+String(f).padStart(2,'0');c.n++;
-        if(imp[b]&&imp[b].has(k)){c.i++;return '<td><span class="stI">✓ 已匯入</span></td>';}
+        if(imp[b]&&imp[b].has(k)){c.i++;const u=(imp[b].u||{})[k];
+          if(u&&typed.has(u)){c.d++;return '<td><span class="stD">✓ 已輸入</span></td>';}
+          return '<td><span class="stP" title="預設值已匯入，還沒有人填數量">待輸入</span></td>';}
         if(has.has(k)){c.w++;return '<td><span class="stW">客變待匯入</span></td>';}
         const v=st[k]||'';c[v||'x']++;
         return `<td><select class="stS st${v||'X'}" data-st="${b}${k}"${canWrite?'':' disabled'}><option value=""${v?'':' selected'}>未設定</option><option value="N"${v==='N'?' selected':''}>無客變</option><option value="U"${v==='U'?' selected':''}>未售</option></select></td>`;
@@ -1223,10 +1247,10 @@ function renderImp(){
     }
     Object.keys(c).forEach(k=>tot[k]+=c[k]);
     const open=blds.length===1||ST_OPEN.has(b);
-    html+=`<details data-b="${b}"${open?' open':''} style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>${b} 棟</b>　共 ${c.n} 戶：已匯入 ${c.i}・客變待匯入 ${c.w}・無客變 ${c.N}・未售 ${c.U}・未設定 ${c.x}</summary>
+    html+=`<details data-b="${b}"${open?' open':''} style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>${b} 棟</b>　共 ${c.n} 戶：已匯入 ${c.i}（其中已輸入 ${c.d}・待輸入 ${c.i-c.d}）・客變待匯入 ${c.w}・無客變 ${c.N}・未售 ${c.U}・未設定 ${c.x}</summary>
 <div class="wrap"><table style="min-width:${cols.length*96+60}px"><thead><tr><th>樓層</th>${cols.map(h=>`<th>${h} 戶</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></details>`;
   });
-  $('impHint').textContent=`${BLD==='*'?'全部棟':BLD+' 棟'}共 ${tot.n} 戶：已匯入 ${tot.i}・客變待匯入 ${tot.w}・無客變 ${tot.N}・未售 ${tot.U}・未設定 ${tot.x}。「已匯入」＝數量已在網頁裡；「客變待匯入」＝工務所已有客變資料（${HAS_DATE} 清單）但還沒匯進來；其餘請輸入者用下拉選單選「無客變」或「未售」。`+(BLD==='*'?'點棟名可展開。':'');
+  $('impHint').textContent=`${BLD==='*'?'全部棟':BLD+' 棟'}共 ${tot.n} 戶：已匯入 ${tot.i}（其中已輸入 ${tot.d}・待輸入 ${tot.i-tot.d}）・客變待匯入 ${tot.w}・無客變 ${tot.N}・未售 ${tot.U}・未設定 ${tot.x}。「客變待匯入」依工務所 ${HAS_DATE} 的客變資料清單。`+(BLD==='*'?'點棟名可展開。':'');
   $('impBody').innerHTML=html;
 }
 function statIds(){return BLD==='*'?UNIT_IDS:unitsOf(BLD);}
@@ -1402,7 +1426,7 @@ rebuild();renderAll();
       if(ch.type==='removed')OV.delete(id);else OV.set(id,strip(d));
     });
     const before=JSON.stringify(S);rebuild();
-    if(UNIT==='ALL')calc();else if(JSON.stringify(S)!==before)renderKeep();
+    if(UNIT==='ALL'){calc();renderImp();}else if(JSON.stringify(S)!==before)renderKeep();
     if(!loaded&&!snap.metadata.fromCache){loaded=true;clearTimeout(timer);idle();}
   },e=>setStatus('雲端資料連線中斷（'+((e&&e.code)||'未知')+'），請重新整理頁面。',true));
   Object.keys(ROSTER).forEach(b=>DB.doc('settings/st_'+b).onSnapshot(snap=>{
