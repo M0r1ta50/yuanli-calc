@@ -145,7 +145,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1118-09（測試頁）';
+const APP_VER='F1-1118-10（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -1740,13 +1740,6 @@ const SC={b:new Set(),f:new Set(),h:new Set()};
 try{const r=JSON.parse(localStorage.getItem('yl-scope2')||'{}');
  (r.b||[]).forEach(v=>SC.b.add(v));(r.f||[]).forEach(v=>SC.f.add(+v));(r.h||[]).forEach(v=>SC.h.add(v));}catch(e){}
 const scSave=()=>{try{localStorage.setItem('yl-scope2',JSON.stringify({b:[...SC.b],f:[...SC.f],h:[...SC.h]}));}catch(e){}};
-/* 選了棟又選了樓層 → 自動把那些棟那些樓層實際有的戶號全部勾起來 */
-function scAutoH(){
-  if(!SC.b.size||!SC.f.size)return;
-  SC.h.clear();
-  SC.b.forEach(b=>{const r=ROSTER[b];if(!r)return;const f0=r[0],f1=r[1],std=r[2],ex=r[3];
-    SC.f.forEach(f=>{if(f<f0||f>f1)return;(ex[f]||std).split(' ').forEach(h=>SC.h.add(h));});});
-}
 function scBlds(){return SC.b.size?[...SC.b]:Object.keys(ROSTER);}
 function scFloors(){const s=new Set();scBlds().forEach(b=>{const r=ROSTER[b];if(!r)return;for(let f=r[0];f<=r[1];f++)s.add(f);});return [...s].sort((a,b)=>a-b);}
 function scHouses(){const s=new Set();scBlds().forEach(b=>{const r=ROSTER[b];if(!r)return;r[2].split(' ').forEach(h=>s.add(h));Object.values(r[3]).forEach(v=>v.split(' ').forEach(h=>s.add(h)));});return [...s].sort();}
@@ -1761,12 +1754,14 @@ function renderScope(){
   const chip=(k,v,t,on)=>`<label class="chip${on?' on':''}"><input type="checkbox" data-sc="${k}" value="${esc(v)}"${on?' checked':''}>${t}</label>`;
   $('scB').innerHTML=Object.keys(ROSTER).map(b=>chip('b',b,b+' 棟',SC.b.has(b))).join('');
   $('scF').innerHTML=scFloors().map(f=>chip('f',f,f+'F',SC.f.has(f))).join('');
-  $('scU').innerHTML=scHouses().map(h=>chip('h',h,h+' 戶',SC.h.has(h))).join('');
+  const hs=scHouses(),allH=hs.length>0&&hs.every(h=>SC.h.has(h));
+  $('scU').innerHTML=`<label class="chip all${allH?' on':''}"><input type="checkbox" id="scAll"${allH?' checked':''}>全選</label>`
+    +hs.map(h=>chip('h',h,h+' 戶',SC.h.has(h))).join('');
   const n=statIds().length,any=SC.b.size||SC.f.size||SC.h.size;
   const pick=[SC.b.size?[...SC.b].sort().join('、')+' 棟':'',SC.f.size?[...SC.f].sort((a,b)=>a-b).join('、')+'F':'',SC.h.size?[...SC.h].sort().join('、')+' 戶':''].filter(Boolean).join(' ＋ ');
   $('scopeHint').textContent=any
-    ?`目前勾選：${pick}　→　統計 ${n} 戶（三種條件取交集；沒勾的那一種視為全部）。勾了「棟」又勾「樓層」時，系統會自動把那些樓層實際有的戶號全部勾起來，您可以再手動取消不要的。`
-    :`沒有勾選＝統計全部已匯入的 ${n} 戶。棟、樓層、戶號三種條件取交集，沒勾的那一種視為全部；勾了「棟」又勾「樓層」時會自動帶出該樓層有的戶號。`;
+    ?`目前勾選：${pick}　→　統計 ${n} 戶。棟、樓層、戶號三種條件取交集，沒勾的那一種視為全部。`
+    :`沒有勾選＝統計全部已匯入的 ${n} 戶。棟、樓層、戶號三種條件取交集，沒勾的那一種視為全部；戶號那一列可以按「全選」一次勾完。`;
 }
 function saveSel(){try{localStorage.setItem('yl-unit',UNIT);localStorage.setItem('yl-bld',BLD);}catch(e){}}
 let _selB=null;
@@ -1882,10 +1877,11 @@ document.addEventListener('input',e=>{
   if(el.tagName==='SELECT')renderAll();else calc();
 });
 document.addEventListener('change',e=>{
-  const el=e.target;if(!el.dataset||!el.dataset.sc)return;
+  const el=e.target;
+  if(el.id==='scAll'){const hs=scHouses();if(el.checked)hs.forEach(h=>SC.h.add(h));else hs.forEach(h=>SC.h.delete(h));scSave();renderScope();calc();return;}
+  if(!el.dataset||!el.dataset.sc)return;
   const k=el.dataset.sc,v=k==='f'?+el.value:el.value;
   if(el.checked)SC[k].add(v);else SC[k].delete(v);
-  if(k==='b'||k==='f')scAutoH();
   scSave();renderScope();calc();
 });
 document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.b){if(d.open)ST_OPEN.add(d.dataset.b);else ST_OPEN.delete(d.dataset.b);}},true);
