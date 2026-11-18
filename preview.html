@@ -88,11 +88,11 @@ button.x{padding:3px 9px;color:var(--mute)}
 </section>
 
 <section class="card" id="secScope" hidden>
-  <h2>統計範圍（可勾選，分棟／分層／分戶累計）</h2>
+  <h2>統計範圍（可勾選：棟／樓層／戶號）</h2>
   <p class="hint" id="scopeHint"></p>
   <div class="scp"><b>棟</b><div id="scB" class="chips"></div></div>
   <div class="scp"><b>樓層</b><div id="scF" class="chips"></div></div>
-  <div class="scp"><b>戶別</b><div id="scU" class="chips scu"></div></div>
+  <div class="scp"><b>戶號</b><div id="scU" class="chips"></div></div>
   <p style="margin:10px 0 2px"><button id="scClear" type="button">清除勾選（回到全部）</button></p>
 </section>
 
@@ -145,7 +145,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1118-08（測試頁）';
+const APP_VER='F1-1118-09（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -1735,34 +1735,38 @@ function renderImp(){
   $('impHint').textContent=`${BLD==='*'?'全部棟':BLD+' 棟'}共 ${tot.n} 戶：已匯入 ${tot.i}（其中已輸入 ${tot.d}・待輸入 ${tot.i-tot.d}）・客變待匯入 ${tot.w}・無客變 ${tot.N}・未售 ${tot.U}・未設定 ${tot.x}。「客變待匯入」依工務所 ${HAS_DATE} 的客變資料清單。`+(BLD==='*'?'點棟名可展開。':'');
   $('impBody').innerHTML=html;
 }
-/* ---------- 統計範圍（分棟／分層／分戶，可累計） ---------- */
-const SC={b:new Set(),f:new Set(),u:new Set()};
-try{const r=JSON.parse(localStorage.getItem('yl-scope')||'{}');['b','f','u'].forEach(k=>(r[k]||[]).forEach(v=>SC[k].add(k==='f'?+v:v)));}catch(e){}
-const scSave=()=>{try{localStorage.setItem('yl-scope',JSON.stringify({b:[...SC.b],f:[...SC.f],u:[...SC.u]}));}catch(e){}};
+/* ---------- 統計範圍（分棟／分層／分戶號，三者取交集） ---------- */
+const SC={b:new Set(),f:new Set(),h:new Set()};
+try{const r=JSON.parse(localStorage.getItem('yl-scope2')||'{}');
+ (r.b||[]).forEach(v=>SC.b.add(v));(r.f||[]).forEach(v=>SC.f.add(+v));(r.h||[]).forEach(v=>SC.h.add(v));}catch(e){}
+const scSave=()=>{try{localStorage.setItem('yl-scope2',JSON.stringify({b:[...SC.b],f:[...SC.f],h:[...SC.h]}));}catch(e){}};
+/* 選了棟又選了樓層 → 自動把那些棟那些樓層實際有的戶號全部勾起來 */
+function scAutoH(){
+  if(!SC.b.size||!SC.f.size)return;
+  SC.h.clear();
+  SC.b.forEach(b=>{const r=ROSTER[b];if(!r)return;const f0=r[0],f1=r[1],std=r[2],ex=r[3];
+    SC.f.forEach(f=>{if(f<f0||f>f1)return;(ex[f]||std).split(' ').forEach(h=>SC.h.add(h));});});
+}
+function scBlds(){return SC.b.size?[...SC.b]:Object.keys(ROSTER);}
+function scFloors(){const s=new Set();scBlds().forEach(b=>{const r=ROSTER[b];if(!r)return;for(let f=r[0];f<=r[1];f++)s.add(f);});return [...s].sort((a,b)=>a-b);}
+function scHouses(){const s=new Set();scBlds().forEach(b=>{const r=ROSTER[b];if(!r)return;r[2].split(' ').forEach(h=>s.add(h));Object.values(r[3]).forEach(v=>v.split(' ').forEach(h=>s.add(h)));});return [...s].sort();}
 function statIds(){
   const base=BLD==='*'?UNIT_IDS:unitsOf(BLD);
-  if(!SC.b.size&&!SC.f.size&&!SC.u.size)return base;
-  return base.filter(u=>{
-    if(SC.u.has(u))return true;
-    if(!SC.b.size&&!SC.f.size)return false;
-    const m=META_U(u);
-    return (!SC.b.size||SC.b.has(m.b))&&(!SC.f.size||SC.f.has(m.f));
-  });
+  if(!SC.b.size&&!SC.f.size&&!SC.h.size)return base;
+  return base.filter(u=>{const m=META_U(u);
+    return (!SC.b.size||SC.b.has(m.b))&&(!SC.f.size||SC.f.has(m.f))&&(!SC.h.size||SC.h.has(m.h));});
 }
 function renderScope(){
   const sec=$('secScope');const show=UNIT==='ALL';sec.hidden=!show;if(!show)return;
-  const base=BLD==='*'?UNIT_IDS:unitsOf(BLD);
-  const blds=[...new Set(base.map(u=>META_U(u).b))].sort();
-  const flrs=[...new Set(base.map(u=>META_U(u).f))].sort((a,b)=>a-b);
-  const ulist=base.filter(u=>!SC.b.size||SC.b.has(META_U(u).b)).sort();
   const chip=(k,v,t,on)=>`<label class="chip${on?' on':''}"><input type="checkbox" data-sc="${k}" value="${esc(v)}"${on?' checked':''}>${t}</label>`;
-  $('scB').innerHTML=blds.map(b=>chip('b',b,b+' 棟',SC.b.has(b))).join('');
-  $('scF').innerHTML=flrs.map(f=>chip('f',f,f+'F',SC.f.has(f))).join('');
-  $('scU').innerHTML=ulist.map(u=>{const m=META_U(u);return chip('u',u,m.b+m.h+' 戶 '+m.f+'F',SC.u.has(u));}).join('')||'<span class="mut" style="font-size:12.5px;padding:4px">沒有符合的戶別</span>';
-  const n=statIds().length,any=SC.b.size||SC.f.size||SC.u.size;
+  $('scB').innerHTML=Object.keys(ROSTER).map(b=>chip('b',b,b+' 棟',SC.b.has(b))).join('');
+  $('scF').innerHTML=scFloors().map(f=>chip('f',f,f+'F',SC.f.has(f))).join('');
+  $('scU').innerHTML=scHouses().map(h=>chip('h',h,h+' 戶',SC.h.has(h))).join('');
+  const n=statIds().length,any=SC.b.size||SC.f.size||SC.h.size;
+  const pick=[SC.b.size?[...SC.b].sort().join('、')+' 棟':'',SC.f.size?[...SC.f].sort((a,b)=>a-b).join('、')+'F':'',SC.h.size?[...SC.h].sort().join('、')+' 戶':''].filter(Boolean).join(' ＋ ');
   $('scopeHint').textContent=any
-    ?`目前統計 ${n} 戶。規則：勾「棟」和「樓層」時取交集（例如勾 A 棟＋5F＝A 棟 5 樓）；另外勾的「戶別」會再加上去。戶別清單會跟著勾選的棟縮小。`
-    :`沒有勾選＝統計全部已匯入的 ${n} 戶。勾「棟」和「樓層」時取交集（例如勾 A 棟＋5F＝A 棟 5 樓）；另外勾的「戶別」會再加上去。`;
+    ?`目前勾選：${pick}　→　統計 ${n} 戶（三種條件取交集；沒勾的那一種視為全部）。勾了「棟」又勾「樓層」時，系統會自動把那些樓層實際有的戶號全部勾起來，您可以再手動取消不要的。`
+    :`沒有勾選＝統計全部已匯入的 ${n} 戶。棟、樓層、戶號三種條件取交集，沒勾的那一種視為全部；勾了「棟」又勾「樓層」時會自動帶出該樓層有的戶號。`;
 }
 function saveSel(){try{localStorage.setItem('yl-unit',UNIT);localStorage.setItem('yl-bld',BLD);}catch(e){}}
 let _selB=null;
@@ -1881,7 +1885,8 @@ document.addEventListener('change',e=>{
   const el=e.target;if(!el.dataset||!el.dataset.sc)return;
   const k=el.dataset.sc,v=k==='f'?+el.value:el.value;
   if(el.checked)SC[k].add(v);else SC[k].delete(v);
-  scSave();renderScope();calc();renderAll&&0;
+  if(k==='b'||k==='f')scAutoH();
+  scSave();renderScope();calc();
 });
 document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.b){if(d.open)ST_OPEN.add(d.dataset.b);else ST_OPEN.delete(d.dataset.b);}},true);
 document.addEventListener('click',e=>{
@@ -1892,7 +1897,7 @@ document.addEventListener('click',e=>{
     queueWrite('rows/'+row._id,()=>OV.get(row._id),null,true);rebuild();renderAll();
   }
 });
-$('scClear').onclick=()=>{SC.b.clear();SC.f.clear();SC.u.clear();scSave();renderScope();calc();};
+$('scClear').onclick=()=>{SC.b.clear();SC.f.clear();SC.h.clear();scSave();renderScope();calc();};
 $('addDoor').onclick=()=>{
   if(!canWrite)return;
   const id='n'+Date.now().toString(36),_id=`${UNIT}~door~${id}`;
