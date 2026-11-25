@@ -82,6 +82,8 @@ button.x{padding:3px 9px;color:var(--mute)}
     <span class="grow"></span>
     <span id="who" class="mut"></span>
     <button id="login" type="button" class="pri" hidden>輸入者登入（Google）</button>
+    <button id="saveNow" type="button" class="pri" title="立即存檔" aria-label="立即存檔" hidden>💾</button>
+    <span id="savedAt" class="mut" hidden></span>
     <button id="logout" type="button" hidden>登出</button>
   </div>
   <p id="sync" style="margin:10px 0 2px">載入中…</p>
@@ -147,7 +149,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1124-02（測試頁）';
+const APP_VER='F1-1124-03（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -2047,6 +2049,8 @@ function lockUI(){
   const ro=!canWrite;
   document.querySelectorAll('#door input,#door select,#floor input,#floor select,#bath input,#bath select,#loss').forEach(e=>e.disabled=ro);
   $('addDoor').hidden=ro;$('reset').hidden=ro||UNIT==='ALL';
+  {const pv=typeof PREVIEW!=='undefined';   // 測試頁讓按鈕看得到但不能按
+   $('saveNow').hidden=ro&&!pv;$('saveNow').disabled=ro;$('savedAt').hidden=ro&&!pv;}
 }
 function unitsOf(b){return UNIT_IDS.filter(u=>META_U(u).b===b).sort((x,y)=>{const a=META_U(x),c=META_U(y);return a.f-c.f||(a.h<c.h?-1:a.h>c.h?1:0);});}
 /* 有客變資料夾的戶別清單（工務所資料夾快照）：每項＝戶號2碼＋樓層2碼 */
@@ -2293,6 +2297,38 @@ $('login').onclick=async()=>{
 };
 $('logout').onclick=()=>AUTH.signOut();
 
+/* 立即存檔：把排隊中的寫入全部送出並等到完成，關機前可用來確認 */
+const pendingW=()=>[...W.values()].filter(w=>w.pend||w.busy||w.dirty).length;
+const LAST={ms:0,by:''};
+const noteSave=d=>{const t=d&&d._t&&d._t.toMillis?d._t.toMillis():0;
+  if(t>LAST.ms){LAST.ms=t;LAST.by=(d._by||'').split('@')[0];return true;}return false;};
+function showSaved(){
+  const e=$('savedAt');if(!e)return;
+  if(!LAST.ms){e.textContent='';return;}
+  const d=new Date(LAST.ms),z=n=>String(n).padStart(2,'0');
+  e.textContent='最後存檔 '+z(d.getMonth()+1)+'/'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes())+':'+z(d.getSeconds())+(LAST.by?'　'+LAST.by:'');
+}
+const hhmmss=()=>new Date().toLocaleTimeString('zh-TW',{hour12:false});
+$('saveNow').onclick=async()=>{
+  if(!canWrite)return;
+  const b=$('saveNow');
+  b.disabled=true;b.textContent='⏳';
+  try{
+    const paths=[...W.keys()].filter(k=>{const w=W.get(k);return w&&(w.pend||w.busy||w.dirty);});
+    paths.forEach(k=>{const w=W.get(k);if(w&&w.t){clearTimeout(w.t);w.t=null;}});
+    await Promise.all(paths.map(k=>flush(k)));
+    let g=0;
+    while(pendingW()&&g++<150)await new Promise(r=>setTimeout(r,100));
+    if(pendingW()){setStatus('還有資料沒存完，請稍候再按一次「立即存檔」',true);}
+    else{const me=((ME&&ME.email)||'').split('@')[0];
+      if(Date.now()>LAST.ms){LAST.ms=Date.now();LAST.by=me;}
+      showSaved();setStatus('全部已存檔 ✓　'+hhmmss()+(me?'　'+me:''));}
+  }catch(e){setStatus('存檔失敗（'+((e&&e.code)||'未知')+'），請檢查網路後再按一次',true);}
+  b.disabled=false;b.textContent='💾';
+};
+/* 還有沒存完的資料就關分頁時，請瀏覽器攔一下 */
+window.addEventListener('beforeunload',e=>{if(canWrite&&pendingW()){e.preventDefault();e.returnValue='';}});
+
 /* ---------- 啟動 ---------- */
 $('ver').textContent=APP_VER;
 const BLDS=[...new Set(UNIT_IDS.map(u=>META_U(u).b))].sort();
@@ -2310,9 +2346,11 @@ rebuild();renderAll();
     snap.docChanges().forEach(ch=>{
       const id=ch.doc.id,d=ch.doc.data(),w=W.get('rows/'+id);
       if(ch.type!=='removed')VER.set('rows/'+id,Math.max(VER.get('rows/'+id)||0,d._v||0));
+      if(ch.type!=='removed')noteSave(d);
       if(w&&w.pend)return;                       // 自己正在輸入的列不被覆蓋
       if(ch.type==='removed')OV.delete(id);else OV.set(id,strip(d));
     });
+    showSaved();
     const before=JSON.stringify(S);rebuild();
     if(UNIT==='ALL'){calc();renderImp();}else if(JSON.stringify(S)!==before)renderKeep();
     if(!loaded&&!snap.metadata.fromCache){loaded=true;clearTimeout(timer);idle();}
@@ -2320,6 +2358,7 @@ rebuild();renderAll();
   Object.keys(ROSTER).forEach(b=>DB.doc('settings/st_'+b).onSnapshot(snap=>{
     const p='settings/st_'+b,w=W.get(p);if(!snap.exists)return;
     const d=snap.data();VER.set(p,Math.max(VER.get(p)||0,d._v||0));
+    if(noteSave(d))showSaved();
     if(w&&w.pend)return;ST[b]=strip(d);if(UNIT==='ALL')renderImp();
   },()=>{}));
   DB.doc('settings/loss').onSnapshot(snap=>{
