@@ -69,7 +69,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <body>
 <main>
 <h1>客變後下料計算</h1>
-<div class="sub"><span class="tag">元利四季莊園</span><span class="tag" id="utag"></span><span>依建材選樣表與客變圖設定預設值，請輸入尺寸</span></div>
+<div class="sub"><span class="tag">元利四季莊園</span><span class="tag" id="utag"></span><span>依建材選樣表與客變圖設定預設值，請輸入尺寸</span><span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span id="savedAt" class="mut" hidden></span><button id="saveNow" type="button" title="立即存檔" aria-label="立即存檔" hidden>💾</button></span></div>
 
 <section class="card">
   <div class="top">
@@ -80,9 +80,7 @@ button.x{padding:3px 9px;color:var(--mute)}
     <button id="reset" type="button" hidden>清除此戶輸入</button>
     <span class="grow"></span>
     <span id="who" class="mut"></span>
-    <button id="login" type="button" class="pri" hidden>輸入者登入（Google）</button>
-    <button id="saveNow" type="button" title="立即存檔" aria-label="立即存檔" hidden>💾</button>
-    <span id="savedAt" class="mut" hidden></span>
+    <button id="login" type="button" hidden>輸入者登入</button>
     <button id="logout" type="button" hidden>登出</button>
   </div>
   <p id="sync" style="margin:10px 0 2px">載入中…</p>
@@ -148,7 +146,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1124-03';
+const APP_VER='F1-1124-04';
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyD0xzidj1f3V1B-nuNXoLdyqhhBi5z3dj0",
