@@ -196,7 +196,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1126-07（測試頁）';
+const APP_VER='F1-1126-08（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -2281,7 +2281,7 @@ function renderAll(){
    if(n&&PDFS.has(n)){b.hidden=false;b.onclick=()=>window.open(PDF_BASE+n+'.pdf','_blank','noopener');}
    else b.hidden=true;}
   {const w=UNITS[UNIT].warn,e=$('warn');e.style.display=w?'flex':'none';e.hidden=!w;$('warnT').textContent=w?'待釐清：'+w:'';}
-  document.title='【測試頁】客變下料計算 '+UNITS[UNIT].label;
+  document.title=(typeof PREVIEW!=='undefined'?'【測試頁】':'')+'客變下料計算 '+UNITS[UNIT].label;
   const all=UNIT==='ALL';
   ['secDoor','secFloor','secBath'].forEach(id=>$(id).hidden=all);$('secDoorAll').hidden=!all;
   $('sumTitle').textContent='下料彙總';
