@@ -34,13 +34,19 @@ h2{font-size:16px;margin:0 0 4px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{border:0;border-radius:0;padding:6px 16px;background:var(--card)}
 .seg button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
-.ckc{width:176px;vertical-align:top}
+.ckc{width:292px;vertical-align:top}
+.ckrow{display:flex;align-items:center;gap:8px}
+.ckfs{font-size:12.5px;padding:2px 2px 2px 5px;width:132px;flex:none}
+.ckfs.sS{background:#ffe2c6;border-color:#e0a876;color:#9a4b00;font-weight:700}
+.ckfs.sQ{background:#ffd9db;border-color:#eb9ba1;color:#a3121a;font-weight:700}
 .ck{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;line-height:1.75;cursor:pointer}
 .ck input{width:15px;height:15px;accent-color:#1f6f6b;margin:0;flex:none}
 .ck .lb{width:34px;flex:none}
 .ck .dt{font-variant-numeric:tabular-nums;color:var(--mute);font-size:12.5px}
 .ck.on .lb{color:var(--acc);font-weight:700}
 .ck.on .dt{color:var(--ink)}
+.ckgo{display:inline-block;margin-top:3px;font-size:12px;color:var(--acc);text-decoration:none;border-bottom:1px dotted var(--acc)}
+.ckgo:hover{background:var(--accbg)}
 .flg{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12.5px;font-weight:700;white-space:nowrap}
 .fS{color:#9a4b00;background:#ffe2c6}
 .fQ{color:#a3121a;background:#ffd9db}
@@ -106,11 +112,11 @@ button.x{padding:3px 9px;color:var(--mute)}
     <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
       <div><label class="cklb">圖面核對</label>
         <div style="display:flex;gap:18px">
-          <label class="ck" id="ckC"><input type="checkbox" data-cku="c"><span class="lb">一致</span><span class="dt">—</span></label>
+          <label class="ck" id="ckC"><input type="checkbox" data-cku="c"><span class="lb">初核</span><span class="dt">—</span></label>
           <label class="ck" id="ckR"><input type="checkbox" data-cku="r"><span class="lb">覆核</span><span class="dt">—</span></label>
         </div></div>
       <div><label class="cklb">問題標籤</label>
-        <select id="ckF" style="width:152px"><option value="">無</option><option value="S">🔧 軀體圖待修正</option><option value="Q">❓ 客變圖待釐清</option></select></div>
+        <select id="ckF" style="width:160px"><option value="">—</option><option value="S">🔧 軀體圖待修</option><option value="Q">❓ 客變圖待釐清</option></select></div>
       <div style="flex:1;min-width:300px"><label class="cklb">核對備註（寫給工務所看）</label>
         <input id="ckN" type="text" style="width:100%" placeholder="例：主臥隔間位置與客變圖差 10cm，請往客廳側退"></div>
     </div>
@@ -142,11 +148,13 @@ button.x{padding:3px 9px;color:var(--mute)}
   <h2 id="impTitle">匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）</h2>
   <div style="margin:0 0 10px"><span class="seg" id="impSeg"><button type="button" data-iv="in" class="on">下料輸入進度</button><button type="button" data-iv="ck">圖面核對進度</button></span></div>
   <p class="hint" id="impHint"></p>
+  <p class="hint" id="ckTip" hidden style="margin-top:-4px">每格「初核」右邊的下拉：— 代表沒問題，🔧 軀體圖待修 是軀體圖要修改，❓ 客變圖待釐清 是客變圖有疑義。選了之後格子下方會出現「✎ 開啟此戶」，點進去填寫問題說明。</p>
   <div class="leg" id="legCk" hidden>
-    <span class="legi"><label class="ck on"><input type="checkbox" checked disabled><span class="lb">一致</span></label>軀體圖與客變圖相符，打勾壓日期</span>
+    <span class="legi"><label class="ck on"><input type="checkbox" checked disabled><span class="lb">初核</span></label>軀體圖與客變圖相符，打勾壓日期</span>
     <span class="legi"><label class="ck on"><input type="checkbox" checked disabled><span class="lb">覆核</span></label>再次確認無誤，打勾壓日期</span>
-    <span class="legi"><span class="flg fS">🔧 軀體待修</span>軀體圖要修改</span>
-    <span class="legi"><span class="flg fQ">❓ 客變待釐清</span>客變圖有疑義，待工務所確認</span>
+    <span class="legi"><select class="ckfs" disabled><option>—</option></select>初核沒問題</span>
+    <span class="legi"><select class="ckfs sS" disabled><option>🔧 軀體圖待修</option></select>軀體圖要修改</span>
+    <span class="legi"><select class="ckfs sQ" disabled><option>❓ 客變圖待釐清</option></select>客變圖有疑義</span>
   </div>
   <div class="leg" id="legIn">
     <span class="legi"><span class="stD">✓ 已輸入</span>已依軀體圖計算數量</span>
@@ -157,7 +165,7 @@ button.x{padding:3px 9px;color:var(--mute)}
   <div id="impBody"></div>
 </section>
 <section class="card" id="secTodo" hidden>
-  <h2>待處理清單（軀體圖待修正／客變圖待釐清）</h2>
+  <h2>待處理清單（軀體圖待修／客變圖待釐清）</h2>
   <p class="hint"><span id="todoHint"></span>　<button id="todoCopy" type="button">複製清單</button></p>
   <div id="todoBody"></div>
 </section>
@@ -188,7 +196,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1126-02（測試頁）';
+const APP_VER='F1-1126-07（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -2106,14 +2114,14 @@ const NODATA={A:{'0107':'資料夾裡「建材表及客變圖」這份 PDF 的�
 const ST={};          // 棟 -> {戶號樓層: 'N' 無客變 | 'U' 未售}（雲端 settings/st_棟）
 const ST_OPEN=new Set();
 /* ---------- 圖面核對 ---------- */
-const CK={};          // 棟 -> {戶號樓層: {c:一致日, cb:人, r:覆核日, rb:人, f:'S'|'Q', n:備註, t:最後異動}}
+const CK={};          // 棟 -> {戶號樓層: {c:初核日, cb:人, r:覆核日, rb:人, f:'S'|'Q', n:備註, t:最後異動}}
 let IMPVIEW='in';     // 'in' 下料輸入進度 ｜ 'ck' 圖面核對進度
 const CKK=u=>{const m=META_U(u);return [m.b, m.h+String(m.f).padStart(2,'0')];};
 const z2=n=>String(n).padStart(2,'0');
 const ymd=()=>{const d=new Date();return d.getFullYear()+'/'+z2(d.getMonth()+1)+'/'+z2(d.getDate());};
 const ymdhm=()=>{const d=new Date();return ymd()+' '+z2(d.getHours())+':'+z2(d.getMinutes());};
 const meName=()=>((ME&&ME.email)||'').split('@')[0];
-const FLAGT={S:'🔧 軀體待修',Q:'❓ 客變待釐清'};
+const FLAGT={S:'🔧 軀體圖待修',Q:'❓ 客變圖待釐清'};
 function ckSet(b,k,o){
   const cur=Object.assign({},(CK[b]||{})[k]||{},o,{t:ymdhm()+'　'+meName()});
   Object.keys(cur).forEach(x=>{if(cur[x]==='')delete cur[x];});
@@ -2131,7 +2139,7 @@ function renderCk(){
   if($('ckN')!==document.activeElement)$('ckN').value=v.n||'';
   $('ckN').disabled=!canWrite;
   const p=[];
-  if(v.c)p.push('一致 '+v.c+(v.cb?'　'+v.cb:''));
+  if(v.c)p.push('初核 '+v.c+(v.cb?'　'+v.cb:''));
   if(v.r)p.push('覆核 '+v.r+(v.rb?'　'+v.rb:''));
   if(v.t)p.push('最後異動 '+v.t);
   $('ckInfo').textContent=p.join('　・　');
@@ -2140,6 +2148,7 @@ function ckIdx(){const o={};UNIT_IDS.forEach(u=>{const m=META_U(u);(o[m.b]=o[m.b
 function renderImpCk(){
   const blds=BLD==='*'?Object.keys(ROSTER):(ROSTER[BLD]?[BLD]:[]);
   const idx=ckIdx(),tot={R:0,C:0,S:0,Q:0,n:0,x:0};let html='';
+  const go=u=>'<a class="ckgo" href="#" data-ckgo="'+u+'">✎ 開啟此戶</a>';
   blds.forEach(b=>{
     const [f0,f1,std,ex]=ROSTER[b],cols=std.split(' '),c={R:0,C:0,S:0,Q:0,n:0,x:0};let rows='';
     for(let f=f0;f<=f1;f++){
@@ -2148,18 +2157,18 @@ function renderImpCk(){
         const k=h+z2(f),u=(idx[b]||{})[k];
         if(!us.has(h)||!u)return '<td class="mut" style="text-align:center">—</td>';
         c.n++;const v=(CK[b]||{})[k]||{};
-        if(v.f){c[v.f]++;return '<td class="ckc"><span class="flg f'+v.f+'">'+FLAGT[v.f]+'</span></td>';}
-        if(v.r)c.R++;else if(v.c)c.C++;else c.x++;
+        if(v.f)c[v.f]++;else if(v.r)c.R++;else if(v.c)c.C++;else c.x++;
         const ln=(key,lab,dt)=>'<label class="ck'+(dt?' on':'')+'"><input type="checkbox" data-ckb="'+b+k+key+'"'+(dt?' checked':'')+(canWrite?'':' disabled')+'><span class="lb">'+lab+'</span><span class="dt">'+(dt||'—')+'</span></label>';
-        return '<td class="ckc">'+ln('c','一致',v.c)+ln('r','覆核',v.r)+'</td>';
+        const fsel='<select class="ckfs'+(v.f?' s'+v.f:'')+'" title="沒問題／軀體圖待修／客變圖待釐清" data-ckf="'+b+k+'"'+(canWrite?'':' disabled')+'><option value=""'+(v.f?'':' selected')+'>—</option><option value="S"'+(v.f==='S'?' selected':'')+'>🔧 軀體圖待修</option><option value="Q"'+(v.f==='Q'?' selected':'')+'>❓ 客變圖待釐清</option></select>';
+        return '<td class="ckc"><div class="ckrow">'+ln('c','初核',v.c)+fsel+'</div>'+ln('r','覆核',v.r)+(v.f?go(u):'')+'</td>';
       }).join('')+'</tr>';
     }
     Object.keys(c).forEach(x=>tot[x]+=c[x]);
     const open=blds.length===1||ST_OPEN.has(b);
-    html+='<details data-b="'+b+'"'+(open?' open':'')+' style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>'+b+' 棟</b>　已匯入 '+c.n+' 戶：覆核 '+c.R+'・一致 '+c.C+'・軀體圖待修正 '+c.S+'・客變圖待釐清 '+c.Q+'・未核對 '+c.x+'</summary>'
+    html+='<details data-b="'+b+'"'+(open?' open':'')+' style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>'+b+' 棟</b>　已匯入 '+c.n+' 戶：覆核 '+c.R+'・初核 '+c.C+'・軀體圖待修 '+c.S+'・客變圖待釐清 '+c.Q+'・未核對 '+c.x+'</summary>'
       +'<div class="wrap"><table style="min-width:'+(cols.length*176+60)+'px"><thead><tr><th>樓層</th>'+cols.map(h=>'<th>'+h+' 戶</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></details>';
   });
-  $('impHint').textContent=(BLD==='*'?'全部棟':BLD+' 棟')+'已匯入 '+tot.n+' 戶：覆核 '+tot.R+'・一致 '+tot.C+'・軀體圖待修正 '+tot.S+'・客變圖待釐清 '+tot.Q+'・未核對 '+tot.x;
+  $('impHint').textContent=(BLD==='*'?'全部棟':BLD+' 棟')+'已匯入 '+tot.n+' 戶：覆核 '+tot.R+'・初核 '+tot.C+'・軀體圖待修 '+tot.S+'・客變圖待釐清 '+tot.Q+'・未核對 '+tot.x;
   $('impBody').innerHTML=html;
 }
 function todoList(){
@@ -2195,7 +2204,7 @@ function renderImp(){
   const sec=$('secImp');const show=UNIT==='ALL';sec.hidden=!show;
   if(!show){$('secTodo').hidden=true;return;}
   $('impSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.iv===IMPVIEW));
-  $('legIn').hidden=IMPVIEW!=='in';$('legCk').hidden=IMPVIEW!=='ck';
+  $('legIn').hidden=IMPVIEW!=='in';$('legCk').hidden=IMPVIEW!=='ck';$('ckTip').hidden=IMPVIEW!=='ck';
   $('impTitle').textContent=IMPVIEW==='ck'?'圖面核對（軀體圖與客變圖是否一致）':'匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）';
   if(IMPVIEW==='ck'){renderImpCk();renderTodo();return;}
   $('secTodo').hidden=true;
@@ -2363,6 +2372,7 @@ document.addEventListener('input',e=>{
   if(el.id==='unit'){UNIT=el.value;saveSel();rebuild();renderAll();return;}
   if(!canWrite)return;
   if(el.dataset.st){const b=el.dataset.st[0],k=el.dataset.st.slice(1);ST[b]=Object.assign({},ST[b],{[k]:el.value});queueWrite('settings/st_'+b,()=>ST[b],{[k]:el.value});renderImp();return;}
+  if(el.dataset.ckf){const b=el.dataset.ckf[0],k=el.dataset.ckf.slice(1);ckSet(b,k,{f:el.value});renderImp();return;}
   if(el.id==='ckF'){const [b,k]=CKK(UNIT);ckSet(b,k,{f:el.value});renderCk();return;}
   if(el.id==='ckN'){const [b,k]=CKK(UNIT);ckSet(b,k,{n:el.value});return;}
   if(el.id==='loss'){LOSS=el.value;calc();queueWrite('settings/loss',()=>({v:LOSS}),{v:LOSS});return;}
@@ -2393,6 +2403,9 @@ document.addEventListener('change',e=>{
     ckSet(b,k,o);renderCk();return;}
 });
 document.addEventListener('click',e=>{
+  const g=e.target.closest&&e.target.closest('[data-ckgo]');
+  if(g){e.preventDefault();const u=g.dataset.ckgo;BLD=META_U(u).b;UNIT=u;saveSel();rebuild();renderAll();
+    const box=$('ckBox');if(box&&!box.hidden)box.scrollIntoView({behavior:'smooth',block:'center'});return;}
   const b=e.target.closest&&e.target.closest('#impSeg button');
   if(b){IMPVIEW=b.dataset.iv;renderImp();return;}
   if(e.target.id==='todoCopy'){
