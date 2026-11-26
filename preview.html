@@ -31,7 +31,22 @@ h2{font-size:16px;margin:0 0 4px}
 .chip input{width:auto;min-width:0;margin:0}
 .chip.on{background:var(--accbg);border-color:var(--acc);color:var(--acc);font-weight:600}
 .chip.all{border-style:dashed;font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:6px 16px;background:var(--card)}
+.seg button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.ckc{width:176px;vertical-align:top}
+.ck{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;line-height:1.75;cursor:pointer}
+.ck input{width:15px;height:15px;accent-color:#1f6f6b;margin:0;flex:none}
+.ck .lb{width:34px;flex:none}
+.ck .dt{font-variant-numeric:tabular-nums;color:var(--mute);font-size:12.5px}
+.ck.on .lb{color:var(--acc);font-weight:700}
+.ck.on .dt{color:var(--ink)}
+.flg{display:inline-block;border-radius:6px;padding:1px 7px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.fS{color:#9a4b00;background:#ffe2c6}
+.fQ{color:#a3121a;background:#ffd9db}
 .leg{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 12px;padding:9px 11px;background:var(--inp);border:1px solid var(--line);border-radius:9px}
+.cklb{font-size:12px;color:var(--mute);display:block;margin-bottom:3px}
+.leg[hidden]{display:none}
 .legi{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mute)}
 .legi .stS{width:88px;flex:none}
 .legb{display:inline-block;border:1px dashed var(--line);border-radius:5px;padding:1px 6px}
@@ -87,6 +102,20 @@ button.x{padding:3px 9px;color:var(--mute)}
   <p id="sync" style="margin:10px 0 2px">載入中…</p>
   <p id="warn" hidden style="margin:8px 0 4px;padding:8px 10px;border:1px solid #e0b100;border-radius:8px;background:rgba(255,204,0,.14);font-size:13px;display:flex;gap:8px;align-items:flex-start"><svg width="20" height="18" viewBox="0 0 20 18" style="flex:none;margin-top:1px" aria-hidden="true"><path d="M10 1 19 17H1Z" fill="#ffcc00" stroke="#b38600" stroke-width="1" stroke-linejoin="round"/><rect x="9" y="6" width="2" height="6" fill="#d21f1f"/><rect x="9" y="13.2" width="2" height="2" fill="#d21f1f"/></svg><span id="warnT"></span></p>
   <p class="hint" id="note" style="margin:4px 0 4px"></p>
+  <div id="ckBox" hidden style="margin:10px 0 2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--inp)">
+    <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+      <div><label class="cklb">圖面核對</label>
+        <div style="display:flex;gap:18px">
+          <label class="ck" id="ckC"><input type="checkbox" data-cku="c"><span class="lb">一致</span><span class="dt">—</span></label>
+          <label class="ck" id="ckR"><input type="checkbox" data-cku="r"><span class="lb">覆核</span><span class="dt">—</span></label>
+        </div></div>
+      <div><label class="cklb">問題標籤</label>
+        <select id="ckF" style="width:152px"><option value="">無</option><option value="S">🔧 軀體圖待修正</option><option value="Q">❓ 客變圖待釐清</option></select></div>
+      <div style="flex:1;min-width:300px"><label class="cklb">核對備註（寫給工務所看）</label>
+        <input id="ckN" type="text" style="width:100%" placeholder="例：主臥隔間位置與客變圖差 10cm，請往客廳側退"></div>
+    </div>
+    <p class="mut" id="ckInfo" style="margin:8px 0 0"></p>
+  </div>
 </section>
 
 <section class="card" id="secScope" hidden>
@@ -110,15 +139,27 @@ button.x{padding:3px 9px;color:var(--mute)}
   <div class="wrap"><table id="dsumAll"></table></div>
 </section>
 <section class="card" id="secImp" hidden>
-  <h2>匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）</h2>
+  <h2 id="impTitle">匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）</h2>
+  <div style="margin:0 0 10px"><span class="seg" id="impSeg"><button type="button" data-iv="in" class="on">下料輸入進度</button><button type="button" data-iv="ck">圖面核對進度</button></span></div>
   <p class="hint" id="impHint"></p>
-  <div class="leg">
+  <div class="leg" id="legCk" hidden>
+    <span class="legi"><label class="ck on"><input type="checkbox" checked disabled><span class="lb">一致</span></label>軀體圖與客變圖相符，打勾壓日期</span>
+    <span class="legi"><label class="ck on"><input type="checkbox" checked disabled><span class="lb">覆核</span></label>再次確認無誤，打勾壓日期</span>
+    <span class="legi"><span class="flg fS">🔧 軀體待修</span>軀體圖要修改</span>
+    <span class="legi"><span class="flg fQ">❓ 客變待釐清</span>客變圖有疑義，待工務所確認</span>
+  </div>
+  <div class="leg" id="legIn">
     <span class="legi"><span class="stD">✓ 已輸入</span>已依軀體圖計算數量</span>
     <span class="legi"><span class="stP legb">待輸入</span>已匯入客簽圖，未輸入數量</span>
     <span class="legi"><span class="stW legb">客變待匯入</span>工務所已有客變資料，但還沒匯進網頁</span>
     <span class="legi"><select class="stS" disabled><option>未設定</option></select>尚無客變資料，未售或無客變</span>
   </div>
   <div id="impBody"></div>
+</section>
+<section class="card" id="secTodo" hidden>
+  <h2>待處理清單（軀體圖待修正／客變圖待釐清）</h2>
+  <p class="hint"><span id="todoHint"></span>　<button id="todoCopy" type="button">複製清單</button></p>
+  <div id="todoBody"></div>
 </section>
 
 <section class="card" id="secDoor">
@@ -147,7 +188,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1124-04（測試頁）';
+const APP_VER='F1-1126-02（測試頁）';
 const PREVIEW=true;
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
@@ -427,7 +468,7 @@ UNITS['B05-07F']={label:'B05 棟 7 樓',note:'無客變（全標配）。全室 
 UNITS['B06-05F']={label:'B06 棟 5 樓',note:'建築部分無變更（僅電氣變更）。全室 GD90140；主浴 G72N、客浴 B05N。開放式廚房併入客廳。'};
 UNITS['B06-06F']={label:'B06 棟 6 樓',note:'臥1門框扇退（臥一門追減，門洞改為開口 190×230）。全室 GD90139；主浴、客浴 GH1N。開放式廚房併入客廳。'};
 UNITS['B06-07F']={label:'B06 棟 7 樓',note:'主臥輕隔間退局部（主臥門仍施作）；客浴退裝修、設備、防水、門框扇，防水不保固；客浴退輕隔間、原位置作止水墩（客浴地壁磚與門追減）；退廚具。全室木地板 SC-526F；主浴 G72N。開放式廚房併入客廳。'};
-UNITS['B06-08F']={label:'B06 棟 8 樓',note:'建築部分無變更（僅電氣變更：新增空管與水線）。全室木地板 SC-526W；主浴、客浴 G72N。開放式廚房併入客廳。'};
+UNITS['B06-08F']={label:'B06 棟 8 樓',note:'建築部分無變更（僅電氣變更：新增空管與水線）。全室木地板 SC-526W；主浴、客浴 G72N。開放式廚房併入客廳。來源 PDF 已於 115.11.26 補上建築客變圖，變更圖面／事項欄空白，確認建築無變更。'};
 UNITS['B06-10F']={label:'B06 棟 10 樓',note:'無客變（全標配）。全室 GD90140；主浴、客浴 GH1N。開放式廚房併入客廳。'};
 UNITS['B06-11F']={label:'B06 棟 11 樓',note:'無客變（全標配）。全室 GD90139；主浴 B05N、客浴 G72N。開放式廚房併入客廳。'};
 UNITS['B06-13F']={label:'B06 棟 13 樓',note:'臥1輕隔間牆退、門框扇退；主臥輕隔間退、門框扇退（兩樘房門追減，地坪仍照做）；退廚具、牆面補油漆。全室 GD90140；主浴、客浴 B05N。開放式廚房併入客廳。'};
@@ -529,6 +570,7 @@ UNITS['E08-10F']={label:'E08 棟 10 樓',note:"無客變。客餐廳、廚房 GD
 UNITS['E08-11F']={label:'E08 棟 11 樓',note:"無客變。客餐廳、臥室 SC-526F；廚房 GD90139。主浴 GH1N、客浴 G72N。E8 戶型（客廳、餐廳、主臥、臥一、臥二、獨立廚房；主浴＋客浴）。主浴從主臥進出、門為 D8a（80×225）；客浴 D8（80×230）。主浴、客浴皆無窗。門開向依原始軀體圖判讀：主臥左開、臥一左開、臥二右開、主浴右開、客浴右開、廚房右開、玄關右開。"};
 /* 還需要釐清的戶別：選單加警示符號，頁面顯示原因 */
 UNITS['G02-05F'].warn='廚房地坪：圖面說明寫「廚房退天花板、設備，保留地磚壁磚」，但選樣表廚房的地坪建材欄勾了追減。目前依圖面說明讓廚房地磚、壁磚照做，待釐清。';
+UNITS['B05-04F'].warn='⚠️ 圖面說明與選樣表不符：選樣表「廚房牆面」勾按標準施作，圖面說明為「廚房天地牆裝修、設備全退」。依圖面說明執行，廚房地坪與壁磚均追減、數量 0。';
 UNITS['A01-09F'].warn='浴一：選樣表同時勾了磚種方案A，又在「浴室地壁磚建材」欄勾追減，兩者矛盾，圖面說明也沒有提到浴一。依業主指示先保留數量（地磚、壁磚維持施作、磚號方案A），待釐清。';
 UNITS.ALL={label:'統計',note:'統計頁只能看、不能輸入；要修改數字請切回各戶。'};
 /* 戶別 ID：2 樓舊戶為 F01 這種，其餘為 F01-03F；下面把 ID 拆成 棟／戶／樓 */
@@ -1994,7 +2036,7 @@ async function flush(path){
         const base=replace?w.get():Object.assign({},strip(cur),fields);
         const d2=stamp(base,(cur._v||0)+1);
         await DB.doc(path).set(d2);VER.set(path,d2._v);
-        if(path.startsWith('rows/'))OV.set(path.slice(5),strip(d2));else if(path.startsWith('settings/st_'))ST[path.slice(12)]=strip(d2);else LOSS=d2.v;
+        if(path.startsWith('rows/'))OV.set(path.slice(5),strip(d2));else if(path.startsWith('settings/st_'))ST[path.slice(12)]=strip(d2);else if(path.startsWith('check/'))CK[path.slice(6)]=strip(d2);else LOSS=d2.v;
         rebuild();renderKeep();setStatus('已同步 ✓（已與其他人的修改合併）');
       }catch(e2){
         if(e2&&e2.code==='permission-denied'){canWrite=false;setStatus('寫入被拒：這個帳號不在輸入名單，請洽管理者。',true);renderAll();}
@@ -2063,6 +2105,82 @@ const ROSTER={A:[4,34,'01 02 03 05 06 07 08 09',{}],B:[2,25,'01 02 03 05 06 07 0
 const NODATA={A:{'0107':'資料夾裡「建材表及客變圖」這份 PDF 的內容其實是客變資料簽收單，沒有實際圖說'}};
 const ST={};          // 棟 -> {戶號樓層: 'N' 無客變 | 'U' 未售}（雲端 settings/st_棟）
 const ST_OPEN=new Set();
+/* ---------- 圖面核對 ---------- */
+const CK={};          // 棟 -> {戶號樓層: {c:一致日, cb:人, r:覆核日, rb:人, f:'S'|'Q', n:備註, t:最後異動}}
+let IMPVIEW='in';     // 'in' 下料輸入進度 ｜ 'ck' 圖面核對進度
+const CKK=u=>{const m=META_U(u);return [m.b, m.h+String(m.f).padStart(2,'0')];};
+const z2=n=>String(n).padStart(2,'0');
+const ymd=()=>{const d=new Date();return d.getFullYear()+'/'+z2(d.getMonth()+1)+'/'+z2(d.getDate());};
+const ymdhm=()=>{const d=new Date();return ymd()+' '+z2(d.getHours())+':'+z2(d.getMinutes());};
+const meName=()=>((ME&&ME.email)||'').split('@')[0];
+const FLAGT={S:'🔧 軀體待修',Q:'❓ 客變待釐清'};
+function ckSet(b,k,o){
+  const cur=Object.assign({},(CK[b]||{})[k]||{},o,{t:ymdhm()+'　'+meName()});
+  Object.keys(cur).forEach(x=>{if(cur[x]==='')delete cur[x];});
+  CK[b]=Object.assign({},CK[b],{[k]:cur});
+  queueWrite('check/'+b,()=>CK[b],{[k]:cur});
+}
+function renderCk(){
+  const box=$('ckBox'),show=UNIT!=='ALL';
+  box.hidden=!show;if(!show)return;
+  const [b,k]=CKK(UNIT),v=(CK[b]||{})[k]||{};
+  const one=(id,on)=>{const e=$(id);e.classList.toggle('on',!!on);e.querySelector('input').checked=!!on;
+    e.querySelector('.dt').textContent=on||'—';e.querySelector('input').disabled=!canWrite;};
+  one('ckC',v.c);one('ckR',v.r);
+  $('ckF').value=v.f||'';$('ckF').disabled=!canWrite;
+  if($('ckN')!==document.activeElement)$('ckN').value=v.n||'';
+  $('ckN').disabled=!canWrite;
+  const p=[];
+  if(v.c)p.push('一致 '+v.c+(v.cb?'　'+v.cb:''));
+  if(v.r)p.push('覆核 '+v.r+(v.rb?'　'+v.rb:''));
+  if(v.t)p.push('最後異動 '+v.t);
+  $('ckInfo').textContent=p.join('　・　');
+}
+function ckIdx(){const o={};UNIT_IDS.forEach(u=>{const m=META_U(u);(o[m.b]=o[m.b]||{})[m.h+z2(m.f)]=u;});return o;}
+function renderImpCk(){
+  const blds=BLD==='*'?Object.keys(ROSTER):(ROSTER[BLD]?[BLD]:[]);
+  const idx=ckIdx(),tot={R:0,C:0,S:0,Q:0,n:0,x:0};let html='';
+  blds.forEach(b=>{
+    const [f0,f1,std,ex]=ROSTER[b],cols=std.split(' '),c={R:0,C:0,S:0,Q:0,n:0,x:0};let rows='';
+    for(let f=f0;f<=f1;f++){
+      const us=new Set((ex[f]||std).split(' '));
+      rows+='<tr><td><b>'+f+'F</b></td>'+cols.map(h=>{
+        const k=h+z2(f),u=(idx[b]||{})[k];
+        if(!us.has(h)||!u)return '<td class="mut" style="text-align:center">—</td>';
+        c.n++;const v=(CK[b]||{})[k]||{};
+        if(v.f){c[v.f]++;return '<td class="ckc"><span class="flg f'+v.f+'">'+FLAGT[v.f]+'</span></td>';}
+        if(v.r)c.R++;else if(v.c)c.C++;else c.x++;
+        const ln=(key,lab,dt)=>'<label class="ck'+(dt?' on':'')+'"><input type="checkbox" data-ckb="'+b+k+key+'"'+(dt?' checked':'')+(canWrite?'':' disabled')+'><span class="lb">'+lab+'</span><span class="dt">'+(dt||'—')+'</span></label>';
+        return '<td class="ckc">'+ln('c','一致',v.c)+ln('r','覆核',v.r)+'</td>';
+      }).join('')+'</tr>';
+    }
+    Object.keys(c).forEach(x=>tot[x]+=c[x]);
+    const open=blds.length===1||ST_OPEN.has(b);
+    html+='<details data-b="'+b+'"'+(open?' open':'')+' style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>'+b+' 棟</b>　已匯入 '+c.n+' 戶：覆核 '+c.R+'・一致 '+c.C+'・軀體圖待修正 '+c.S+'・客變圖待釐清 '+c.Q+'・未核對 '+c.x+'</summary>'
+      +'<div class="wrap"><table style="min-width:'+(cols.length*176+60)+'px"><thead><tr><th>樓層</th>'+cols.map(h=>'<th>'+h+' 戶</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div></details>';
+  });
+  $('impHint').textContent=(BLD==='*'?'全部棟':BLD+' 棟')+'已匯入 '+tot.n+' 戶：覆核 '+tot.R+'・一致 '+tot.C+'・軀體圖待修正 '+tot.S+'・客變圖待釐清 '+tot.Q+'・未核對 '+tot.x;
+  $('impBody').innerHTML=html;
+}
+function todoList(){
+  const blds=BLD==='*'?Object.keys(ROSTER):(ROSTER[BLD]?[BLD]:[]),idx=ckIdx(),out=[];
+  blds.forEach(b=>Object.keys(CK[b]||{}).forEach(k=>{
+    const v=CK[b][k],u=(idx[b]||{})[k];
+    if(v&&v.f&&u)out.push({u:u,v:v});
+  }));
+  return out.sort((a,b)=>a.u<b.u?-1:a.u>b.u?1:0);
+}
+function renderTodo(){
+  const sec=$('secTodo'),show=UNIT==='ALL'&&IMPVIEW==='ck';
+  sec.hidden=!show;if(!show)return;
+  const L=todoList();
+  $('todoHint').textContent='待處理 '+L.length+' 戶';
+  $('todoBody').innerHTML=L.length
+    ? '<div class="wrap"><table><thead><tr><th>戶別</th><th>問題標籤</th><th>核對備註</th><th>最後異動</th></tr></thead><tbody>'
+      +L.map(x=>'<tr><td>'+esc((UNITS[x.u]||{}).label||x.u)+'</td><td><span class="flg f'+x.v.f+'">'+FLAGT[x.v.f]+'</span></td><td>'+esc(x.v.n||'')+'</td><td class="mut">'+esc(x.v.t||'')+'</td></tr>').join('')
+      +'</tbody></table></div>'
+    : '<p class="mut">目前沒有待處理的戶別。</p>';
+}
 /* 已經有輸入者填過尺寸（面積 A／長度 L／扣減 D／其他扣減 E）的戶別 */
 const SZK=['A','L','D','E'];
 function typedSet(){
@@ -2074,7 +2192,13 @@ function typedSet(){
   return s;
 }
 function renderImp(){
-  const sec=$('secImp');const show=UNIT==='ALL';sec.hidden=!show;if(!show)return;
+  const sec=$('secImp');const show=UNIT==='ALL';sec.hidden=!show;
+  if(!show){$('secTodo').hidden=true;return;}
+  $('impSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.iv===IMPVIEW));
+  $('legIn').hidden=IMPVIEW!=='in';$('legCk').hidden=IMPVIEW!=='ck';
+  $('impTitle').textContent=IMPVIEW==='ck'?'圖面核對（軀體圖與客變圖是否一致）':'匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）';
+  if(IMPVIEW==='ck'){renderImpCk();renderTodo();return;}
+  $('secTodo').hidden=true;
   const blds=BLD==='*'?Object.keys(ROSTER):(ROSTER[BLD]?[BLD]:[]);
   const imp={};UNIT_IDS.forEach(u=>{const m=META_U(u),k=m.h+String(m.f).padStart(2,'0');const x=imp[m.b]=imp[m.b]||Object.assign(new Set(),{u:{}});x.add(k);x.u[k]=u;});
   const typed=typedSet();
@@ -2155,7 +2279,7 @@ function renderAll(){
   $('sumHint').textContent=all?`${BLD==='*'?'全部棟':BLD+' 棟'} 目前 ${statIds().length} 戶合計：施作中的項目依 類別＋品項＋型號 合併。片數＝每戶各自進位後相加（每戶分開下料）。`
     :'施作中的項目依 類別＋品項＋型號 合併；片數＝含損耗面積 ÷ 單片面積，無條件進位。踢腳板以長度計。';
   if(!all){renderDoor();renderFloor();renderBath();}
-  renderImp();renderScope();
+  renderImp();renderCk();renderScope();
   calc();lockUI();
 }
 function renderKeep(){
@@ -2239,6 +2363,8 @@ document.addEventListener('input',e=>{
   if(el.id==='unit'){UNIT=el.value;saveSel();rebuild();renderAll();return;}
   if(!canWrite)return;
   if(el.dataset.st){const b=el.dataset.st[0],k=el.dataset.st.slice(1);ST[b]=Object.assign({},ST[b],{[k]:el.value});queueWrite('settings/st_'+b,()=>ST[b],{[k]:el.value});renderImp();return;}
+  if(el.id==='ckF'){const [b,k]=CKK(UNIT);ckSet(b,k,{f:el.value});renderCk();return;}
+  if(el.id==='ckN'){const [b,k]=CKK(UNIT);ckSet(b,k,{n:el.value});return;}
   if(el.id==='loss'){LOSS=el.value;calc();queueWrite('settings/loss',()=>({v:LOSS}),{v:LOSS});return;}
   const t=el.dataset.t;if(!t)return;
   const row=S[t][el.dataset.i],k=el.dataset.k;if(!row)return;
@@ -2255,6 +2381,25 @@ document.addEventListener('change',e=>{
   const k=el.dataset.sc,v=k==='f'?+el.value:el.value;
   if(el.checked)SC[k].add(v);else SC[k].delete(v);
   scSave();renderScope();calc();
+});
+document.addEventListener('change',e=>{
+  const el=e.target;if(!canWrite)return;
+  const d=el.dataset.ckb;
+  if(d){const b=d[0],k=d.slice(1,5),key=d.slice(5),on=el.checked,o={};
+    o[key]=on?ymd():'';o[key+'b']=on?meName():'';
+    ckSet(b,k,o);renderImp();return;}
+  if(el.dataset.cku){const [b,k]=CKK(UNIT),key=el.dataset.cku,on=el.checked,o={};
+    o[key]=on?ymd():'';o[key+'b']=on?meName():'';
+    ckSet(b,k,o);renderCk();return;}
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('#impSeg button');
+  if(b){IMPVIEW=b.dataset.iv;renderImp();return;}
+  if(e.target.id==='todoCopy'){
+    const L=todoList();
+    const txt=L.length?L.map(x=>((UNITS[x.u]||{}).label||x.u)+'　'+FLAGT[x.v.f].replace(/^[^ ]+ /,'')+'　'+(x.v.n||'')+'　('+(x.v.t||'')+')').join('\n'):'目前沒有待處理的戶別。';
+    navigator.clipboard.writeText(txt).then(()=>setStatus('待處理清單已複製（'+L.length+' 戶）'),()=>setStatus('複製失敗，請手動選取',true));
+  }
 });
 document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.b){if(d.open)ST_OPEN.add(d.dataset.b);else ST_OPEN.delete(d.dataset.b);}},true);
 document.addEventListener('click',e=>{
@@ -2358,6 +2503,13 @@ rebuild();renderAll();
     const d=snap.data();VER.set(p,Math.max(VER.get(p)||0,d._v||0));
     if(noteSave(d))showSaved();
     if(w&&w.pend)return;ST[b]=strip(d);if(UNIT==='ALL')renderImp();
+  },()=>{}));
+  Object.keys(ROSTER).forEach(b=>DB.doc('check/'+b).onSnapshot(snap=>{
+    const p='check/'+b,w=W.get(p);if(!snap.exists)return;
+    const d=snap.data();VER.set(p,Math.max(VER.get(p)||0,d._v||0));
+    if(noteSave(d))showSaved();
+    if(w&&w.pend)return;CK[b]=strip(d);
+    if(UNIT==='ALL')renderImp();else renderCk();
   },()=>{}));
   DB.doc('settings/loss').onSnapshot(snap=>{
     const w=W.get('settings/loss');if(!snap.exists)return;
