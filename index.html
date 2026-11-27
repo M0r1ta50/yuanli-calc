@@ -34,12 +34,12 @@ h2{font-size:16px;margin:0 0 4px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{border:0;border-radius:0;padding:6px 16px;background:var(--card)}
 .seg button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
-#secImp.wide{max-width:none;width:calc(100vw - 40px);margin-left:calc(-50vw + 50% + 20px)}
-.ckc{width:126px;vertical-align:top;padding:5px 5px}
+.ckc{width:96px;vertical-align:top;padding:5px 4px}
+.ckdt{font-size:11px;color:var(--ink);padding-left:18px;font-variant-numeric:tabular-nums;line-height:1.4}
 .cktb{table-layout:fixed;min-width:0}
 .cktb tfoot th{border-top:1px solid var(--line);border-bottom:0}
 .ckrow{display:block}
-.ckfs{font-size:11.5px;padding:1px 2px;width:100%;margin-top:3px;display:block}
+.ckfs{font-size:11.5px;padding:1px 1px;width:auto;max-width:100%;margin-top:3px;display:block}
 .ckfs.sS{background:#ffe2c6;border-color:#e0a876;color:#9a4b00;font-weight:700}
 .ckfs.sQ{background:#ffd9db;border-color:#eb9ba1;color:#a3121a;font-weight:700}
 .ck{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;line-height:1.55;cursor:pointer}
@@ -198,7 +198,7 @@ button.x{padding:3px 9px;color:var(--mute)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const APP_VER='F1-1127-02';
+const APP_VER='F1-1127-04';
 /* Firebase 專案設定（從 Firebase 主控台「專案設定 → 你的應用程式」複製；這些值本來就是公開的，安全靠資料庫規則） */
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyD0xzidj1f3V1B-nuNXoLdyqhhBi5z3dj0",
@@ -2159,8 +2159,8 @@ function renderImpCk(){
         if(!us.has(h)||!u)return '<td class="mut" style="text-align:center">—</td>';
         c.n++;const v=(CK[b]||{})[k]||{};
         if(v.f)c[v.f]++;else if(v.r)c.R++;else if(v.c)c.C++;else c.x++;
-        const ln=(key,lab,dt)=>'<label class="ck'+(dt?' on':'')+'"><input type="checkbox" data-ckb="'+b+k+key+'"'+(dt?' checked':'')+(canWrite?'':' disabled')+'><span class="lb">'+lab+'</span><span class="dt">'+(dt||'—')+'</span></label>';
-        const fsel='<select class="ckfs'+(v.f?' s'+v.f:'')+'" title="沒問題／軀體圖待修／客變圖待釐清" data-ckf="'+b+k+'"'+(canWrite?'':' disabled')+'><option value=""'+(v.f?'':' selected')+'>—</option><option value="S"'+(v.f==='S'?' selected':'')+'>🔧 軀體圖待修</option><option value="Q"'+(v.f==='Q'?' selected':'')+'>❓ 客變圖待釐清</option></select>';
+        const ln=(key,lab,dt)=>'<label class="ck'+(dt?' on':'')+'"><input type="checkbox" data-ckb="'+b+k+key+'"'+(dt?' checked':'')+(canWrite?'':' disabled')+'><span class="lb">'+lab+'</span></label>'+(dt?'<div class="ckdt">'+dt+'</div>':'');
+        const fsel='<select class="ckfs'+(v.f?' s'+v.f:'')+'" title="沒問題／軀體圖待修／客變圖待釐清" data-ckf="'+b+k+'"'+(canWrite?'':' disabled')+'><option value=""'+(v.f?'':' selected')+'>—</option><option value="S"'+(v.f==='S'?' selected':'')+'>🔧 待修</option><option value="Q"'+(v.f==='Q'?' selected':'')+'>❓ 釐清</option></select>';
         return '<td class="ckc">'+ln('c','初核',v.c)+ln('r','覆核',v.r)+fsel+(v.f?go(u):'')+'</td>';
       }).join('')+'</tr>';
     }
@@ -2168,7 +2168,7 @@ function renderImpCk(){
     const open=blds.length===1||ST_OPEN.has(b);
     const hd='<tr><th style="width:48px">樓層</th>'+cols.map(h=>'<th>'+h+' 戶</th>').join('')+'</tr>';
     html+='<details data-b="'+b+'"'+(open?' open':'')+' style="margin:6px 0;border-top:1px solid var(--line);padding-top:6px"><summary style="cursor:pointer;padding:4px 0"><b>'+b+' 棟</b>　已匯入 '+c.n+' 戶：覆核 '+c.R+'・初核 '+c.C+'・軀體圖待修 '+c.S+'・客變圖待釐清 '+c.Q+'・未核對 '+c.x+'</summary>'
-      +'<div class="wrap" data-ckw="'+b+'"><table class="cktb" style="min-width:'+(cols.length*126+48)+'px"><thead>'+hd+'</thead><tbody>'+rows+'</tbody><tfoot>'+hd+'</tfoot></table></div></details>';
+      +'<div class="wrap" data-ckw="'+b+'"><table class="cktb" style="min-width:'+(cols.length*96+48)+'px"><thead>'+hd+'</thead><tbody>'+rows+'</tbody><tfoot>'+hd+'</tfoot></table></div></details>';
   });
   $('impHint').textContent=(BLD==='*'?'全部棟':BLD+' 棟')+'已匯入 '+tot.n+' 戶：覆核 '+tot.R+'・初核 '+tot.C+'・軀體圖待修 '+tot.S+'・客變圖待釐清 '+tot.Q+'・未核對 '+tot.x;
   const sc={};$('impBody').querySelectorAll('[data-ckw]').forEach(w=>{if(w.scrollLeft)sc[w.dataset.ckw]=w.scrollLeft;});
@@ -2209,7 +2209,6 @@ function renderImp(){
   if(!show){$('secTodo').hidden=true;return;}
   $('impSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.iv===IMPVIEW));
   $('legIn').hidden=IMPVIEW!=='in';$('legCk').hidden=IMPVIEW!=='ck';$('ckTip').hidden=IMPVIEW!=='ck';
-  sec.classList.toggle('wide',IMPVIEW==='ck');
   $('impTitle').textContent=IMPVIEW==='ck'?'圖面核對（軀體圖與客變圖是否一致）':'匯入狀況（每一戶有沒有匯進網頁、有沒有人填數量）';
   if(IMPVIEW==='ck'){renderImpCk();renderTodo();return;}
   $('secTodo').hidden=true;
